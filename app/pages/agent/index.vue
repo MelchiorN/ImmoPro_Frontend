@@ -4,9 +4,23 @@
     <!-- ── Colonne principale ── -->
     <div class="flex-1 space-y-6 min-w-0">
 
+      <!-- Header dynamique -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-extrabold text-primary leading-tight">
+            Bonjour{{ agentPrenom ? `, ${agentPrenom}` : '' }} 
+          </h1>
+          <p class="text-sm text-gray-400 mt-0.5">{{ todayLabel }} · Voici votre tableau de bord</p>
+        </div>
+      </div>
+
       <!-- KPI Row -->
       <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <!-- Skeleton -->
+        <div v-if="isLoading" v-for="i in 4" :key="i" class="animate-pulse bg-white h-28 rounded-xl border border-gray-100" />
+
         <div
+          v-else
           v-for="kpi in kpis"
           :key="kpi.label"
           class="bg-white p-5 rounded-xl border border-gray-100 shadow-[0_2px_12px_rgba(0,62,126,0.06)] hover:shadow-md transition-shadow"
@@ -25,16 +39,35 @@
         </div>
       </section>
 
-      <!-- Tableau priorité -->
+      <!-- Tableau — Biens en cours (mes dossiers) -->
       <section class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-          <h3 class="text-base font-bold text-primary">À traiter en priorité</h3>
-          <button class="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
+          <h3 class="text-base font-bold text-primary">Mes dossiers en cours</h3>
+          <NuxtLink
+            to="/agent/check"
+            class="text-primary text-sm font-medium flex items-center gap-1 hover:underline"
+          >
             Tout voir <ArrowRight :size="14" />
-          </button>
+          </NuxtLink>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- Skeleton tableau -->
+        <div v-if="isLoading" class="p-4 space-y-3">
+          <div v-for="i in 3" :key="i" class="animate-pulse h-12 bg-gray-50 rounded-lg" />
+        </div>
+
+        <!-- Vide -->
+        <div v-else-if="biensEnCours.length === 0" class="px-6 py-12 text-center">
+          <Package :size="36" class="text-gray-200 mx-auto mb-3" />
+          <p class="text-sm text-gray-400 font-medium">Aucun dossier en cours</p>
+          <p class="text-xs text-gray-300 mt-1">Prenez en charge un bien depuis la liste des biens à vérifier.</p>
+          <NuxtLink to="/agent/check" class="inline-block mt-3 px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:opacity-90">
+            Voir les biens disponibles
+          </NuxtLink>
+        </div>
+
+        <!-- Tableau -->
+        <div v-else class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wide">
               <tr>
@@ -42,61 +75,83 @@
                 <th class="px-5 py-3">Propriétaire</th>
                 <th class="px-5 py-3">Soumis le</th>
                 <th class="px-5 py-3">Priorité</th>
-                <th class="px-5 py-3">Statut</th>
                 <th class="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
               <tr
-                v-for="property in properties"
-                :key="property.id"
+                v-for="bien in biensEnCours"
+                :key="bien.id"
                 class="hover:bg-blue-50/30 transition-colors"
               >
                 <!-- Bien -->
                 <td class="px-5 py-3">
                   <div class="flex items-center gap-3">
-                    <div class="w-14 h-10 rounded-lg overflow-hidden shrink-0 relative">
-                      <img :src="property.image" :alt="property.name" class="w-full h-full object-cover" />
-                      <div v-if="property.verified" class="absolute top-0.5 left-0.5 bg-green-600 px-1 rounded text-[7px] text-white flex items-center gap-0.5">
-                        <BadgeCheck :size="7" />
+                    <div class="w-14 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                      <img
+                        v-if="bien.photo"
+                        :src="bien.photo"
+                        :alt="bien.titre"
+                        class="w-full h-full object-cover"
+                      />
+                      <div v-else class="w-full h-full flex items-center justify-center">
+                        <Building2 :size="16" class="text-gray-300" />
                       </div>
                     </div>
                     <div>
-                      <p class="font-semibold text-gray-800">{{ property.name }}</p>
-                      <p class="text-gray-400 text-xs">{{ property.location }}</p>
+                      <p class="font-semibold text-gray-800 truncate max-w-[160px]">{{ bien.titre }}</p>
+                      <p class="text-gray-400 text-xs truncate max-w-[160px]">{{ bien.adresse }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-3 text-gray-500">{{ property.owner }}</td>
-                <td class="px-5 py-3 text-gray-500 text-xs">{{ property.date }}</td>
+                <td class="px-5 py-3 text-gray-500 text-xs">
+                  {{ bien.client?.nom ?? '—' }}
+                </td>
+                <td class="px-5 py-3 text-gray-400 text-xs">
+                  {{ formatDate(bien.created_at) }}
+                </td>
                 <!-- Priorité -->
                 <td class="px-5 py-3">
-                  <span :class="`px-2.5 py-0.5 rounded-full text-xs font-bold ${priorityClass(property.priority)}`">
-                    {{ property.priority }}
+                  <span :class="`px-2.5 py-0.5 rounded-full text-xs font-bold ${priorityClass(bien.priorite)}`">
+                    {{ priorityLabel(bien.priorite) }}
                   </span>
                 </td>
-                <!-- Statut -->
-                <td class="px-5 py-3">
-                  <div class="flex items-center gap-1.5 text-gray-500 text-xs">
-                    <div :class="`w-1.5 h-1.5 rounded-full ${statusDotClass(property.status)}`" />
-                    {{ property.status }}
-                  </div>
-                </td>
-                <!-- Actions — toujours visibles -->
+                <!-- Actions -->
                 <td class="px-5 py-3 text-right">
-                  <div class="flex justify-end gap-2">
-                    <button class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                      Voir
-                    </button>
-                    <button class="px-3 py-1.5 border border-gray-200 text-primary rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors">
-                      Planifier
-                    </button>
-                  </div>
+                  <NuxtLink
+                    to="/agent/check"
+                    class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors inline-block"
+                  >
+                    Ouvrir
+                  </NuxtLink>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </section>
+
+      <!-- Rapports en brouillon -->
+      <section v-if="!isLoading && (stats?.kpis?.rapports_brouillons ?? 0) > 0"
+        class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-amber-100 rounded-lg">
+            <FileText :size="18" class="text-amber-600" />
+          </div>
+          <div>
+            <p class="text-sm font-bold text-amber-800">
+              {{ stats.kpis.rapports_brouillons }} rapport{{ stats.kpis.rapports_brouillons > 1 ? 's' : '' }} en brouillon
+            </p>
+            <p class="text-xs text-amber-600">Continuez la rédaction de vos rapports non soumis.</p>
+          </div>
+        </div>
+        <NuxtLink
+          to="/agent/reports"
+          class="px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors whitespace-nowrap flex-shrink-0"
+        >
+          Voir les rapports
+        </NuxtLink>
       </section>
     </div>
 
@@ -106,12 +161,12 @@
       <!-- Mini Calendrier -->
       <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div class="flex justify-between items-center mb-4">
-          <h4 class="font-bold text-gray-800 text-sm">Octobre 2023</h4>
+          <h4 class="font-bold text-gray-800 text-sm capitalize">{{ miniCalLabel }}</h4>
           <div class="flex gap-1">
-            <button class="p-1 hover:bg-gray-100 rounded transition-colors">
+            <button class="p-1 hover:bg-gray-100 rounded transition-colors" @click="miniCalPrev">
               <ChevronLeft :size="14" />
             </button>
-            <button class="p-1 hover:bg-gray-100 rounded transition-colors">
+            <button class="p-1 hover:bg-gray-100 rounded transition-colors" @click="miniCalNext">
               <ChevronRight :size="14" />
             </button>
           </div>
@@ -123,42 +178,53 @@
 
         <div class="grid grid-cols-7 gap-y-1 text-center text-xs">
           <span
-            v-for="day in calendarDays"
-            :key="`${day.num}-${day.prev}`"
+            v-for="(day, i) in miniCalDays"
+            :key="i"
             :class="[
-              'relative flex items-center justify-center rounded-full w-6 h-6 mx-auto cursor-pointer transition-colors',
-              day.prev  ? 'text-gray-300' :
-              day.today ? 'bg-primary text-white font-bold' :
-              'text-gray-700 hover:bg-blue-50',
+              'relative flex items-center justify-center rounded-full w-6 h-6 mx-auto transition-colors',
+              !day.current ? 'text-gray-300' :
+              day.today    ? 'bg-primary text-white font-bold' :
+              'text-gray-700 hover:bg-blue-50 cursor-pointer',
             ]"
           >
             {{ day.num }}
-            <span v-if="day.event && !day.today" class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+            <span
+              v-if="day.hasVisite && !day.today"
+              class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-purple-500 rounded-full"
+            />
           </span>
         </div>
 
         <!-- Prochaines visites -->
         <div class="mt-4 pt-4 border-t border-gray-100">
           <h5 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Prochaines visites</h5>
-          <div class="space-y-3">
+
+          <div v-if="isLoading" class="space-y-2">
+            <div v-for="i in 2" :key="i" class="animate-pulse h-10 bg-gray-50 rounded-lg" />
+          </div>
+
+          <div v-else-if="upcomingVisites.length === 0" class="text-center py-3">
+            <p class="text-[10px] text-gray-300">Aucune visite planifiée</p>
+          </div>
+
+          <div v-else class="space-y-3">
             <div
-              v-for="visit in upcomingVisits"
+              v-for="visit in upcomingVisites"
               :key="visit.id"
               class="flex gap-3 cursor-pointer group"
+              @click="navigateTo('/agent/calendar')"
             >
               <div :class="[
                 'px-2 py-1 rounded-lg text-center min-w-[46px] transition-colors text-xs',
-                visit.today
-                  ? 'bg-blue-50 text-primary'
-                  : 'bg-gray-50 text-gray-500',
+                isToday(visit.date_visite) ? 'bg-blue-50 text-primary' : 'bg-gray-50 text-gray-500',
                 'group-hover:bg-primary group-hover:text-white'
               ]">
-                <p class="font-bold">{{ visit.time }}</p>
-                <p class="text-[9px] font-bold uppercase">{{ visit.day }}</p>
+                <p class="font-bold">{{ formatTime(visit.date_visite) }}</p>
+                <p class="text-[9px] font-bold uppercase">{{ formatDayShort(visit.date_visite) }}</p>
               </div>
               <div class="flex-1 overflow-hidden">
-                <p class="text-xs font-bold truncate text-gray-800">{{ visit.property }}</p>
-                <p class="text-[10px] text-gray-400 truncate">{{ visit.client }}</p>
+                <p class="text-xs font-bold truncate text-gray-800">{{ visit.bien_titre }}</p>
+                <p class="text-[10px] text-gray-400 truncate">{{ visit.bien_adresse }}</p>
               </div>
             </div>
           </div>
@@ -171,12 +237,22 @@
         <div class="relative z-10">
           <Award :size="28" class="mb-3 fill-white" />
           <p class="font-bold text-sm mb-1">Qualité de service</p>
-          <p class="text-xs text-white/75 mb-4 leading-relaxed">
-            85 % des biens vérifiés ce trimestre. Excellent travail !
+          <p class="text-xs text-white/75 mb-1 leading-relaxed">
+            <span v-if="stats?.kpis?.taux_validation !== null && stats?.kpis?.taux_validation !== undefined">
+              <span class="text-xl font-extrabold text-white">{{ stats.kpis.taux_validation }}%</span>
+              de validation sur vos biens traités.
+            </span>
+            <span v-else>Aucun dossier traité pour le moment.</span>
           </p>
-          <button class="w-full py-2 bg-white text-primary rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors">
-            Voir mes stats
-          </button>
+          <p class="text-[11px] text-white/50 mb-4">
+            {{ (stats?.kpis?.publies ?? 0) }} publiés · {{ (stats?.kpis?.en_cours ?? 0) }} en cours
+          </p>
+          <NuxtLink
+            to="/agent/reports"
+            class="block w-full py-2 bg-white text-primary rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors text-center"
+          >
+            Mes rapports
+          </NuxtLink>
         </div>
       </div>
 
@@ -185,79 +261,172 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import {
   Package, CheckCircle2, CalendarCheck, Percent,
-  TrendingUp, Check, Clock,
-  ChevronLeft, ChevronRight, ArrowRight, BadgeCheck, Award,
+  TrendingUp, Check, Clock, AlertCircle,
+  ChevronLeft, ChevronRight, ArrowRight, Award,
+  Building2, FileText, RefreshCw,
 } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth/auth'
 
 definePageMeta({ layout: 'agent' })
 
-const kpis = [
-  {
-    label: 'Biens assignés',     value: '12',
-    icon: Package,       iconBg: 'bg-blue-50',   iconColor: 'text-primary',
-    trend: '+2 cette semaine',   trendIcon: TrendingUp, trendColor: 'text-green-600',
-  },
-  {
-    label: 'Vérifiés ce mois',   value: '8',
-    icon: CheckCircle2,  iconBg: 'bg-green-50',  iconColor: 'text-green-600',
-    trend: 'Objectif : 10',      trendIcon: Check,     trendColor: 'text-green-600',
-  },
-  {
-    label: 'Visites planifiées', value: '5',
-    icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
-    trend: 'Prochaine à 14:00',  trendIcon: Clock,      trendColor: 'text-gray-500',
-  },
-  {
-    label: 'Taux de validation', value: '92%',
-    icon: Percent,       iconBg: 'bg-blue-50',   iconColor: 'text-primary',
-    trend: '+1.4% ce mois',      trendIcon: TrendingUp, trendColor: 'text-green-600',
-  },
-]
+const authStore = useAuthStore()
+const config    = useRuntimeConfig()
+const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
-const properties = [
-  {
-    id: 1, name: 'Appartement Haussmannien', location: 'Paris 8e — 75m²',
-    owner: 'Jean Dupont', date: '12/10/2023', priority: 'Urgent', status: 'En attente', verified: true,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCrFh34jK0XlFxo-YxW1Xlv2xz-zAFsrBZ_KSl93og2Rlm9F5r6G1y3IPJ1IZqkDMp_AtV5Cb4SIQpYa1ilsyso742QXX4wCAOBr65RA1ANn0msgJdOpVYBAlDVRnOwm74jmL5D9gSTJJIwbOkPQ94duezex4nL3n8DOnq2erNx6nP7zRTrEsf5m8eka-hue3cCuuiJ3Z6NK_GBcV0UHswjAa-vzYhTsN5roOrKHW5jrWSSu5s3PQfGhgawkws7BvZ-4fpchOz_bQM',
-  },
-  {
-    id: 2, name: 'Loft Industriel', location: 'Lyon — 110m²',
-    owner: 'Marie Lefebvre', date: '13/10/2023', priority: 'Moyenne', status: 'Revue en cours', verified: false,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCvxa6tzuirFssjQr5W_pAc9snOaqsyGKMOS1QEklk29aDuPLacIdcaZ9Su7tUhykmTVU1xSzok2RLSxeDBWaRHxd2ky-kqY_SlQIQJngZgjByyX_I8wZJdUDFs_T9n7pRoSA-X7sNjse3QaQC8jYwRSKcqnHhm3poIGLyJ8VlfjlW52XoIsjbU773Zt_in0DUIIJlCSx8tU7RD5x10sUaeYpDSxHF-gOO6ADwZX5h56_NuT0tdN57j6RKU-8jDlVZAh-hrwA8whgo',
-  },
-  {
-    id: 3, name: 'Villa Contemporaine', location: 'Bordeaux — 150m²',
-    owner: 'Marc Durant', date: '14/10/2023', priority: 'Faible', status: 'En attente', verified: false,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDlVwfVlXdzgA2nSZWqIDYWrWjYUB5JV4Hxsja0qX8h7dTFO5ZEC4458594ZXVT2Y_sKUOMWlV0LQitgiIVN7bc8iAMS8k3LnSf2UjD2z7hubBu5CiXXWvsGFGQQ8sFf95qbt-kMXb9BGdvuYed-Ml7dl-1uBVNuAlgzdePugkTJOr56IZDUMSLFTEyTBbtvXtVyLBUkfUsvUM-Wn9_P9YfxSDCfYvFwKVECxQEayLUnK6mwk84cidPjWxXeCQ466NJeC1RSjUt0JY',
-  },
-]
+// ── State ──────────────────────────────────────────────────────────────────
+const stats         = ref<any>(null)
+const isLoading     = ref(true)
+const miniCalDate   = ref(new Date())
 
-function priorityClass(p: string) {
-  if (p === 'Urgent')  return 'bg-red-100 text-red-700'
-  if (p === 'Moyenne') return 'bg-orange-100 text-orange-700'
+// ── Auth ───────────────────────────────────────────────────────────────────
+const agentPrenom = computed(() => {
+  const u = authStore.user?.value ?? authStore.user
+  return (u as any)?.first_name ?? null
+})
+
+// ── Chargement ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  isLoading.value = true
+  try {
+    const data = await $fetch(`${apiBase}/agent/stats`, {
+      headers: { Authorization: `Bearer ${authStore.token.value}` },
+    })
+    stats.value = (data as any).data
+  } catch (e) {
+    console.error('Erreur stats agent', e)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// ── KPIs dynamiques ────────────────────────────────────────────────────────
+const kpis = computed(() => {
+  const k = stats.value?.kpis ?? {}
+  return [
+    {
+      label: 'Biens en cours',
+      value: k.en_cours ?? '—',
+      icon: Package, iconBg: 'bg-blue-50', iconColor: 'text-primary',
+      trend: `${k.non_assigne ?? 0} en attente de prise en charge`,
+      trendIcon: k.non_assigne > 0 ? AlertCircle : Check,
+      trendColor: k.non_assigne > 0 ? 'text-orange-500' : 'text-gray-400',
+    },
+    {
+      label: 'Biens publiés',
+      value: k.publies ?? '—',
+      icon: CheckCircle2, iconBg: 'bg-green-50', iconColor: 'text-green-600',
+      trend: 'Dossiers validés et publiés',
+      trendIcon: Check, trendColor: 'text-green-600',
+    },
+    {
+      label: 'Visites planifiées',
+      value: k.visites_planifiees ?? '—',
+      icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
+      trend: k.prochaine_visite ? `Prochaine à ${k.prochaine_visite}` : 'Aucune à venir',
+      trendIcon: Clock, trendColor: 'text-gray-500',
+    },
+    {
+      label: 'Taux de validation',
+      value: k.taux_validation !== null && k.taux_validation !== undefined ? `${k.taux_validation}%` : '—',
+      icon: Percent, iconBg: 'bg-blue-50', iconColor: 'text-primary',
+      trend: k.taux_validation !== null ? 'Sur les dossiers traités' : 'Pas encore de données',
+      trendIcon: k.taux_validation >= 80 ? TrendingUp : Check,
+      trendColor: k.taux_validation >= 80 ? 'text-green-600' : 'text-gray-400',
+    },
+  ]
+})
+
+const biensEnCours    = computed(() => stats.value?.biens_en_cours ?? [])
+const upcomingVisites = computed(() => stats.value?.upcoming_visites ?? [])
+
+// ── Mini calendrier ────────────────────────────────────────────────────────
+const miniCalLabel = computed(() =>
+  miniCalDate.value.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+)
+function miniCalPrev() {
+  const d = new Date(miniCalDate.value)
+  d.setMonth(d.getMonth() - 1)
+  miniCalDate.value = d
+}
+function miniCalNext() {
+  const d = new Date(miniCalDate.value)
+  d.setMonth(d.getMonth() + 1)
+  miniCalDate.value = d
+}
+
+const miniCalDays = computed(() => {
+  const year  = miniCalDate.value.getFullYear()
+  const month = miniCalDate.value.getMonth()
+  const today = new Date()
+  const firstDay = new Date(year, month, 1)
+  let startDow = firstDay.getDay() - 1
+  if (startDow < 0) startDow = 6
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const daysInPrevMonth = new Date(year, month, 0).getDate()
+
+  // Jours avec visites
+  const visiteDates = new Set(
+    upcomingVisites.value
+      .map((v: any) => v.date_visite?.slice(0, 10))
+      .filter(Boolean)
+  )
+
+  const cells: any[] = []
+  for (let i = startDow - 1; i >= 0; i--) {
+    cells.push({ num: daysInPrevMonth - i, current: false })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    cells.push({
+      num: d,
+      current: true,
+      today: today.getFullYear() === year && today.getMonth() === month && today.getDate() === d,
+      hasVisite: visiteDates.has(dateStr),
+    })
+  }
+  while (cells.length < 35) cells.push({ num: cells.length - daysInMonth - startDow + 1, current: false })
+  return cells
+})
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const todayLabel = computed(() =>
+  new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+)
+
+function formatDate(d: string | null): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+function formatTime(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+function formatDayShort(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const today = new Date()
+  if (d.toDateString() === today.toDateString()) return 'Auj.'
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+  if (d.toDateString() === tomorrow.toDateString()) return 'Dem.'
+  return d.toLocaleDateString('fr-FR', { weekday: 'short' })
+}
+function isToday(iso: string | null): boolean {
+  if (!iso) return false
+  return new Date(iso).toDateString() === new Date().toDateString()
+}
+
+function priorityLabel(p: string | null): string {
+  const map: Record<string, string> = { haute: 'Urgent', moyenne: 'Moyenne', basse: 'Faible' }
+  return map[p ?? ''] ?? (p ?? 'Standard')
+}
+function priorityClass(p: string | null): string {
+  if (p === 'haute')   return 'bg-red-100 text-red-700'
+  if (p === 'moyenne') return 'bg-orange-100 text-orange-700'
   return 'bg-blue-50 text-primary'
 }
-function statusDotClass(s: string) {
-  if (s === 'Revue en cours') return 'bg-blue-500'
-  return 'bg-gray-400'
-}
 
-const calendarDays = [
-  { num: 25, prev: true }, { num: 26, prev: true }, { num: 27, prev: true },
-  { num: 28, prev: true }, { num: 29, prev: true }, { num: 30, prev: true },
-  { num: 1 }, { num: 2 }, { num: 3 }, { num: 4 }, { num: 5 }, { num: 6 }, { num: 7 },
-  { num: 8 }, { num: 9 }, { num: 10 }, { num: 11 },
-  { num: 12, today: true },
-  { num: 13, event: true },
-  { num: 14 }, { num: 15 }, { num: 16 },
-  { num: 17, event: true },
-  { num: 18 }, { num: 19 }, { num: 20 }, { num: 21 }, { num: 22 },
-]
-
-const upcomingVisits = [
-  { id: 1, time: '14:00', day: 'Auj.', property: 'Appt. Haussmannien', client: 'Jean Dupont', today: true },
-  { id: 2, time: '10:30', day: 'Dem.', property: 'Villa Contemporaine', client: 'Marc Durant', today: false },
-]
+onMounted(loadAll)
 </script>

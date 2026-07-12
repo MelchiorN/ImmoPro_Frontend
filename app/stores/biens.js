@@ -90,22 +90,6 @@ export const useBiensStore = () => {
     }
   }
 
-  // ── Libérer (release) ─────────────────────────────────────────────────────
-  async function releaseBien(id) {
-    try {
-      await $fetch(`${apiBase}/agent/biens/${id}/release`, {
-        method:  'POST',
-        headers: authHeaders(),
-      })
-      biens.value = biens.value.filter(b => b.id !== id)
-      await fetchCounts()
-      return { success: true }
-    } catch (err) {
-      const message = err?.data?.message || 'Impossible de libérer ce bien.'
-      return { success: false, message }
-    }
-  }
-
   // ── Publier ou rejeter ────────────────────────────────────────────────────
   async function updateStatut(id, statut, noteAdmin = null) {
     try {
@@ -123,6 +107,20 @@ export const useBiensStore = () => {
     }
   }
 
+  // ── Supprimer les documents d'un bien ────────────────────────────────────
+  async function deleteDocuments(id) {
+    try {
+      await $fetch(`${apiBase}/agent/biens/${id}/documents`, {
+        method:  'DELETE',
+        headers: authHeaders(),
+      })
+      return { success: true }
+    } catch (err) {
+      const message = err?.data?.message || 'Impossible de supprimer les documents.'
+      return { success: false, message }
+    }
+  }
+
   return {
     biens,
     counts,
@@ -134,7 +132,7 @@ export const useBiensStore = () => {
     fetchBiens,
     fetchBien,
     claimBien,
-    releaseBien,
     updateStatut,
+    deleteDocuments,
   }
 }

@@ -74,10 +74,11 @@ const navItems = [
   { id: 3, label: 'Calendrier',         icon: CalendarDays,    href: '/agent/calendar' },
   { id: 4, label: 'Rapports',           icon: BarChart2,       href: '/agent/reports' },
   { id: 5, label: 'Messagerie',         icon: Mail,            href: '/agent/messages' },
-  { id: 6, label: 'Profil',             icon: User,            href: '/agent/profile' },
+  { id: 6, label: 'Statistiques',       icon:BarChart2,        href: '/agent/statistiques' },
+  { id: 7, label: 'Profil',             icon: User,            href: '/agent/profile' },
 ]
 
 function isActive(href: string): boolean {
-  return route.path === href
+  return route.path === href || (href !== '/agent' && route.path.startsWith(href))
 }
 </script>

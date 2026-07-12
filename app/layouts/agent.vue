@@ -31,6 +31,7 @@ const pageTitles: Record<string, string> = {
   '/agent/calendar':   'Calendrier',
   '/agent/reports':    'Rapports',
   '/agent/messages':   'Messagerie',
+  '/agent/statistiques':   'Statistiques',
   '/agent/profile':    'Profil',
 }
 

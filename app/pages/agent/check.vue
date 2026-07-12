@@ -7,13 +7,38 @@
         <h1 class="text-3xl font-bold text-[#003e7e]">Biens à vérifier</h1>
         <p class="text-gray-500 text-sm mt-1">Gérez les inspections et la validation des nouveaux mandats.</p>
       </div>
-      <button
-        class="self-start flex items-center gap-2 px-4 py-2 bg-[#003e7e] text-white rounded-xl font-semibold text-sm hover:opacity-90 active:scale-95 transition-all shadow-sm"
-        @click="refreshAll"
-      >
-        <span class="material-symbols-outlined text-[18px]">refresh</span>
-        Actualiser
-      </button>
+      
+    </div>
+
+    <!-- ── Stats Cards ── -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-white rounded-xl p-5 shadow-[0_4px_12px_rgba(26,86,160,0.05)] flex items-center gap-4">
+        <div class="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-orange-600 text-[20px]">inbox</span>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-gray-800">{{ counts.nonAssigne ?? 0 }}</p>
+          <p class="text-xs text-gray-400 font-medium">Non assignés</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-5 shadow-[0_4px_12px_rgba(26,86,160,0.05)] flex items-center gap-4">
+        <div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[#003e7e] text-[20px]">assignment_turned_in</span>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-gray-800">{{ counts.enCours ?? 0 }}</p>
+          <p class="text-xs text-gray-400 font-medium">En cours (moi)</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-5 shadow-[0_4px_12px_rgba(26,86,160,0.05)] flex items-center gap-4">
+        <div class="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-green-600 text-[20px]">verified</span>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-gray-800">{{ counts.termine ?? 0 }}</p>
+          <p class="text-xs text-gray-400 font-medium">Terminés (moi)</p>
+        </div>
+      </div>
     </div>
 
     <!-- ── Toast notification ── -->
@@ -76,16 +101,14 @@
             <option value="bureau_commerce">Bureau / Commerce</option>
           </select>
           <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
-            <span class="material-symbols-outlined text-[16px]">filter_list</span>
-            <span>Priorité</span>
-          </div>
-          <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
             <span>Date</span>
             <span class="material-symbols-outlined text-[16px]">calendar_today</span>
           </div>
         </div>
       </div>
     </div>
+
+    
 
     <!-- ── Tableau ── -->
     <div class="bg-white rounded-xl shadow-[0_4px_12px_rgba(26,86,160,0.05)] overflow-hidden">
@@ -120,6 +143,7 @@
                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Type</th>
                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Soumis le</th>
                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Rapport</th>
                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -164,85 +188,102 @@
                 </td>
 
                 <!-- Soumis le -->
-                <td class="px-6 py-5 text-sm text-gray-600">
+                <td class="px-6 py-5 text-sm text-gray-600 whitespace-nowrap">
                   {{ formatDate(bien.created_at) }}
                 </td>
 
                 <!-- Statut -->
-                <td class="px-6 py-5">
-                  <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border', statutClass(bien)]">
+                <td class="px-6 py-5 whitespace-nowrap">
+                  <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap', statutClass(bien)]">
                     {{ statutLabel(bien) }}
                   </span>
                 </td>
 
+                <!-- Rapport -->
+                <td class="px-6 py-5 whitespace-nowrap">
+                  <template v-if="activeTab !== 'non_assigne'">
+                    <button
+                      v-if="bien.rapport"
+                      @click="openRapportModal(bien)"
+                      :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-colors', rapportBadgeClass(bien.rapport)]"
+                      :title="rapportBadgeTitle(bien.rapport)"
+                    >
+                      <span class="material-symbols-outlined text-[14px]">{{ rapportBadgeIcon(bien.rapport) }}</span>
+                      {{ rapportBadgeLabel(bien.rapport) }}
+                    </button>
+                    <button
+                      v-else
+                      @click="openRapportModal(bien)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border border-dashed border-gray-300 text-gray-400 hover:border-[#003e7e] hover:text-[#003e7e] transition-colors"
+                      title="Créer un rapport"
+                    >
+                      <span class="material-symbols-outlined text-[14px]">add</span>
+                      Créer
+                    </button>
+                  </template>
+                  <span v-else class="text-gray-300 text-xs">—</span>
+                </td>
+
                 <!-- Actions -->
-                <td class="px-6 py-5 text-right">
+                <td class="px-6 py-5">
+                  <div class="flex items-center justify-end gap-2">
 
-                  <!-- Onglet "en_cours" : publier ou rejeter -->
-                  <div v-if="activeTab === 'en_cours'" class="flex items-center justify-end gap-2">
-                    <button
-                      class="px-3 py-1.5 rounded-lg bg-green-50 text-green-700 font-bold text-xs flex items-center gap-1.5 border border-green-200 hover:bg-green-600 hover:text-white transition-colors"
-                      :disabled="isSubmitting === bien.id"
-                      @click="publier(bien.id)"
-                    >
-                      <span class="material-symbols-outlined text-[15px]">check_circle</span>
-                      Publier
-                    </button>
-                    <button
-                      class="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 font-bold text-xs flex items-center gap-1.5 border border-red-200 hover:bg-red-600 hover:text-white transition-colors"
-                      :disabled="isSubmitting === bien.id"
-                      @click="openRejectModal(bien)"
-                    >
-                      <span class="material-symbols-outlined text-[15px]">cancel</span>
-                      Rejeter
-                    </button>
-                    <button
-                      class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                      title="Libérer ce bien"
-                      @click="liberer(bien.id)"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">undo</span>
-                    </button>
+                    <!-- Onglet "en_cours" : publier / rejeter -->
+                    <template v-if="activeTab === 'en_cours'">
+                      <button
+                        class="w-9 h-9 rounded-full bg-blue-50 text-[#003e7e] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                        title="Voir le détail"
+                        @click="openDetailModal(bien)"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">visibility</span>
+                      </button>
+                      
+                    </template>
+
+                    <!-- Onglet "non_assigne" : prendre en charge / voir / enlever docs -->
+                    <template v-else-if="activeTab === 'non_assigne'">
+                      <button
+                        class="w-9 h-9 rounded-full bg-[#003e7e] text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-50"
+                        title="Prendre en charge"
+                        :disabled="isClaiming"
+                        @click="prendre(bien.id)"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
+                      </button>
+                      <button
+                        class="w-9 h-9 rounded-full bg-blue-50 text-[#003e7e] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                        title="Voir le détail"
+                        @click="openDetailModal(bien)"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">visibility</span>
+                      </button>
+                      <button
+                        class="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-red-100 hover:text-red-600 transition-colors"
+                        title="Enlever les documents"
+                        @click="confirmerSupprimerDocuments(bien)"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+                      </button>
+                    </template>
+
+                    <!-- Onglet "termine" : voir uniquement -->
+                    <template v-else>
+                      <button
+                        class="w-9 h-9 rounded-full bg-blue-50 text-[#003e7e] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                        title="Voir le détail"
+                        @click="openDetailModal(bien)"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">visibility</span>
+                      </button>
+                    </template>
+
                   </div>
-
-                  <!-- Onglet "non_assigne" : prendre en charge (hover) -->
-                  <div
-                    v-else-if="activeTab === 'non_assigne'"
-                    class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <button
-                      class="px-3 py-1.5 rounded-lg bg-[#003e7e] text-white font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition-opacity disabled:opacity-50"
-                      :disabled="isClaiming"
-                      @click="prendre(bien.id)"
-                    >
-                      <span class="material-symbols-outlined text-[15px]">assignment_turned_in</span>
-                      Prendre en charge
-                    </button>
-                    <button
-                      class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                      title="Documents"
-                      @click.stop
-                    >
-                      <span class="material-symbols-outlined text-[20px]">description</span>
-                    </button>
-                  </div>
-
-                  <!-- Onglet "termine" : lecture seule -->
-                  <div v-else class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                      title="Voir le détail"
-                    >
-                      <span class="material-symbols-outlined text-[20px]">visibility</span>
-                    </button>
-                  </div>
-
                 </td>
               </tr>
 
               <!-- État vide -->
               <tr v-if="!isLoading && biens.length === 0">
-                <td colspan="6" class="px-6 py-16 text-center">
+                <td colspan="7" class="px-6 py-16 text-center">
                   <span class="material-symbols-outlined text-gray-200 text-5xl mb-3 block">inbox</span>
                   <p class="text-gray-400 font-medium">Aucun bien dans cet onglet.</p>
                 </td>
@@ -370,6 +411,52 @@
           </div>
         </div>
       </div>
+
+      <!-- ── Modal confirmation suppression documents ── -->
+      <div
+        v-if="deleteDocsModal.open"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        @click.self="deleteDocsModal.open = false"
+      >
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-2">Enlever les documents ?</h3>
+          <p class="text-sm text-gray-500 mb-5">
+            Tous les documents associés à <strong>{{ deleteDocsModal.bien?.titre }}</strong> seront supprimés. Cette action est irréversible.
+          </p>
+          <div class="flex justify-end gap-3">
+            <button
+              class="px-4 py-2 rounded-lg text-gray-600 text-sm font-semibold hover:bg-gray-100"
+              @click="deleteDocsModal.open = false"
+            >
+              Annuler
+            </button>
+            <button
+              class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700"
+              @click="executerSuppressionDocuments"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Modal détail bien ── -->
+      <BienDetailModal
+        v-if="detailModal.open"
+        :bien-id="detailModal.bienId"
+        :active-tab="activeTab"
+        @close="detailModal.open = false"
+        @action="onModalAction"
+      />
+
+      <!-- ── Modal rapport ── -->
+      <RapportModal
+        v-if="rapportModal.open"
+        :bien-id="rapportModal.bienId"
+        :bien="rapportModal.bien"
+        @close="rapportModal.open = false"
+        @submitted="onRapportSubmitted"
+      />
     </Teleport>
 
   </div>
@@ -377,6 +464,8 @@
 
 <script setup lang="ts">
 import { useBiensStore } from '~/stores/biens'
+import BienDetailModal from '~/components/agent/BienDetailModal.vue'
+import RapportModal from '~/components/agent/RapportModal.vue'
 
 definePageMeta({ layout: 'agent' })
 
@@ -400,10 +489,7 @@ function tabCount(key: string): number {
 
 // ── Filtres ──────────────────────────────────────────────────────────────────
 const filterType = ref('')
-
-function applyFilters() {
-  loadBiens()
-}
+function applyFilters() { loadBiens() }
 
 // ── Chargement ────────────────────────────────────────────────────────────────
 async function loadBiens(page = 1) {
@@ -423,22 +509,17 @@ function switchTab(key: string) {
   loadBiens()
 }
 
-function goToPage(page: number) {
-  loadBiens(page)
-}
+function goToPage(page: number) { loadBiens(page) }
 
 // ── Pagination ────────────────────────────────────────────────────────────────
 const pageStart = computed(() => {
   if (meta.value.total === 0) return 0
   return (meta.value.current_page - 1) * 15 + 1
 })
-const pageEnd = computed(() =>
-  Math.min(meta.value.current_page * 15, meta.value.total)
-)
+const pageEnd = computed(() => Math.min(meta.value.current_page * 15, meta.value.total))
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
-
 function showToast(type: 'success' | 'error', message: string) {
   toast.value = { type, message }
   setTimeout(() => { toast.value = null }, 3500)
@@ -457,22 +538,60 @@ async function prendre(id: string) {
   }
 }
 
-async function liberer(id: string) {
-  const result = await store.releaseBien(id)
-  if (result.success) {
-    showToast('success', 'Bien remis dans le pool.')
-    await store.fetchCounts()
-  } else {
-    showToast('error', result.message)
-  }
-}
-
 async function publier(id: string) {
   isSubmitting.value = id
   const result = await store.updateStatut(id, 'publie')
   isSubmitting.value = null
   if (result.success) {
     showToast('success', 'Bien publié avec succès.')
+    await store.fetchCounts()
+  } else {
+    showToast('error', result.message)
+  }
+}
+
+// ── Modal détail ──────────────────────────────────────────────────────────────
+const detailModal = reactive<{ open: boolean; bienId: string | null }>({
+  open: false, bienId: null,
+})
+function openDetailModal(bien: any) {
+  detailModal.bienId = bien.id
+  detailModal.open   = true
+}
+function onModalAction(action: string, id: string) {
+  detailModal.open = false
+  if (action === 'claim')   prendre(id)
+  if (action === 'publier') publier(id)
+  if (action === 'rejeter') openRejectModal({ id, titre: '' })
+}
+
+// ── Modal rapport ─────────────────────────────────────────────────────────────
+const rapportModal = reactive<{ open: boolean; bienId: string; bien: any }>({
+  open: false, bienId: '', bien: null,
+})
+function openRapportModal(bien: any) {
+  rapportModal.bienId = bien.id
+  rapportModal.bien   = bien
+  rapportModal.open   = true
+}
+function onRapportSubmitted(rapport: any) {
+  rapportModal.open = false
+  showToast('success', 'Rapport soumis à l\'administration.')
+  refreshAll()
+}
+
+// ── Suppression documents ─────────────────────────────────────────────────────
+const deleteDocsModal = reactive<{ open: boolean; bien: any }>({ open: false, bien: null })
+function confirmerSupprimerDocuments(bien: any) {
+  deleteDocsModal.bien = bien
+  deleteDocsModal.open = true
+}
+async function executerSuppressionDocuments() {
+  if (!deleteDocsModal.bien) return
+  deleteDocsModal.open = false
+  const result = await store.deleteDocuments(deleteDocsModal.bien.id)
+  if (result.success) {
+    showToast('success', 'Documents supprimés.')
   } else {
     showToast('error', result.message)
   }
@@ -483,18 +602,12 @@ const rejectModal = reactive<{
   open: boolean
   bien: { id: string; titre: string } | null
   note: string
-}>({
-  open: false,
-  bien: null,
-  note: '',
-})
-
+}>({ open: false, bien: null, note: '' })
 function openRejectModal(bien: any) {
   rejectModal.bien = bien
   rejectModal.note = ''
   rejectModal.open = true
 }
-
 async function confirmerRejet() {
   if (!rejectModal.bien || !rejectModal.note.trim()) return
   isSubmitting.value = rejectModal.bien.id
@@ -503,32 +616,59 @@ async function confirmerRejet() {
   rejectModal.open = false
   if (result.success) {
     showToast('success', 'Bien rejeté. Le propriétaire a été notifié.')
+    await store.fetchCounts()
   } else {
     showToast('error', result.message)
   }
 }
 
+// ── Helpers Rapport ───────────────────────────────────────────────────────────
+function rapportBadgeClass(rapport: any): string {
+  const s = rapport?.statut
+  if (s === 'brouillon') return 'bg-gray-100 text-gray-500 border-gray-200'
+  if (s === 'soumis')    return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+  if (s === 'valide')    return 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+  if (s === 'rejete')    return 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+  return 'bg-gray-100 text-gray-500 border-gray-200'
+}
+function rapportBadgeIcon(rapport: any): string {
+  const s = rapport?.statut
+  if (s === 'soumis') return 'pending'
+  if (s === 'valide') return 'task_alt'
+  if (s === 'rejete') return 'rate_review'
+  return 'draft'
+}
+function rapportBadgeLabel(rapport: any): string {
+  const s = rapport?.statut
+  if (s === 'brouillon') return 'Brouillon'
+  if (s === 'soumis')    return 'Soumis'
+  if (s === 'valide')    return 'Validé'
+  if (s === 'rejete')    return 'À corriger'
+  return 'Rapport'
+}
+function rapportBadgeTitle(rapport: any): string {
+  const s = rapport?.statut
+  if (s === 'soumis') return 'Rapport soumis à l\'admin — cliquer pour voir/modifier'
+  if (s === 'valide') return 'Rapport approuvé'
+  if (s === 'rejete') return 'Rapport rejeté — corrections requises'
+  return 'Ouvrir le rapport'
+}
+
 // ── Helpers d'affichage ───────────────────────────────────────────────────────
 function thumbnailUrl(bien: any): string | null {
+  if (bien.photo_principale && bien.photo_principale.startsWith('http')) return bien.photo_principale
   const principal = bien.medias?.find((m: any) => m.est_principale) ?? bien.medias?.[0]
   return principal?.url ?? null
 }
-
 function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
   return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
-
 const typeLabels: Record<string, string> = {
-  appartement:    'Appartement',
-  maison:         'Maison',
-  villa:          'Villa',
-  terrain:        'Terrain',
-  bureau_commerce: 'Bureau / Commerce',
+  appartement: 'Appartement', maison: 'Maison', villa: 'Villa',
+  terrain: 'Terrain', bureau_commerce: 'Bureau / Commerce',
 }
-function formatType(t: string): string {
-  return typeLabels[t] ?? t
-}
+function formatType(t: string): string { return typeLabels[t] ?? t }
 
 function statutLabel(bien: any): string {
   if (activeTab.value === 'non_assigne') return 'EN ATTENTE'
@@ -537,7 +677,6 @@ function statutLabel(bien: any): string {
   if (bien.statut === 'rejete')          return 'REJETÉ'
   return bien.statut?.toUpperCase() ?? '—'
 }
-
 function statutClass(bien: any): string {
   if (activeTab.value === 'non_assigne') return 'bg-orange-50 text-orange-700 border-orange-200'
   if (activeTab.value === 'en_cours')    return 'bg-blue-50 text-blue-700 border-blue-200'
@@ -546,20 +685,11 @@ function statutClass(bien: any): string {
   return 'bg-gray-100 text-gray-500 border-gray-200'
 }
 
-// ── Initialisation ────────────────────────────────────────────────────────────
-onMounted(() => {
-  refreshAll()
-})
+// ── Init ─────────────────────────────────────────────────────────────────────
+onMounted(() => { refreshAll() })
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.3s ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(-12px);
-}
+.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-12px); }
 </style>
