@@ -2,7 +2,7 @@ import { useAuthStore } from '~/stores/auth/auth'
 
 export const useRapportsStore = () => {
   const config  = useRuntimeConfig()
-  const apiBase = config.public?.apiBase || 'http://localhost:8000/api'
+  const apiBase = config.public.apiBase 
 
   function authHeaders() {
     const authStore = useAuthStore()

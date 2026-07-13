@@ -17,7 +17,7 @@ export const useBiensStore = () => {
   const error     = useState('biens_error',  () => null)
 
   const config  = useRuntimeConfig()
-  const apiBase = config.public?.apiBase || 'http://localhost:8000/api'
+  const apiBase = config.public.apiBase 
 
   function authHeaders() {
     const authStore = useAuthStore()

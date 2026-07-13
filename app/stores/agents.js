@@ -7,7 +7,7 @@ export const useAgentsStore = () => {
   const error      = useState('agents_error', () => null)
 
   const config  = useRuntimeConfig()
-  const apiBase = config.public?.apiBase || 'http://localhost:8000/api'
+  const apiBase = config.public.apiBase 
 
   function authHeaders() {
     const authStore = useAuthStore()

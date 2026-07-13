@@ -8,7 +8,7 @@
         <!-- Image de fond -->
         <div
           class="absolute inset-0 z-0 bg-cover bg-center"
-          style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCWsPF5hoQIOV-j0oUMKT7ZIJoGgaWE8jQyu2cITjl24wRXVJlGypvfGfOCOlqZbkIpvvZA-Xa1yeXzy7uYdrOQ6a_NQzDVgoC93dSiQtyX1W3zsmUKnWEmRLS1e1YpnnHuj1KfW-genouTA_XChm5jX-76EsCPvGnxeJin9AxXXZe1da4q-rJGT0NIMVp9BoK9yKmMOUKBcvORja1G8kj93J_IKEQXkcMdg6Fpo7T-ocypEWKnbn7UhBDknomSj5BbQKjsDYwA5XM')"
+          style="background-image: url('/images/login.png')"
         />
         <!-- Overlay bleu 65% -->
         <div class="absolute inset-0 z-10 bg-primary-container/65" />

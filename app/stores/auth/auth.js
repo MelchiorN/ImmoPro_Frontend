@@ -17,61 +17,28 @@ function writeUserToStorage(user) {
   } catch { /* quota ou mode privé */ }
 }
 
-/**
- * Clé du cookie selon le rôle — évite le conflit entre onglets admin/agent.
- * Un admin et un agent peuvent être connectés simultanément dans des onglets
- * différents sans écraser le token de l'autre.
- */
-function cookieKey(role) {
-  if (role === 'admin') return 'auth_token_admin'
-  if (role === 'agent') return 'auth_token_agent'
-  return 'auth_token'
-}
-
 export const useAuthStore = () => {
   const user      = useState('auth_user',    () => readUserFromStorage())
   const isLoading = useState('auth_loading', () => false)
   const error     = useState('auth_error',   () => null)
 
-  // Cookie de session — sans maxAge = cookie de session (expire à la fermeture du navigateur)
-  // Le nom du cookie dépend du rôle stocké dans le user actuel
-  const currentRole = computed(() => user.value?.role ?? null)
-
+  // Cookie de session unique pour l'authentification
   const tokenCookie = useCookie('auth_token', {
-    // Pas de maxAge → cookie de session (effacé à la fermeture du navigateur)
     path:     '/',
     sameSite: 'lax',
     secure:   false, // true en production HTTPS
   })
 
-  // Cookies dédiés par rôle pour éviter les conflits multi-onglets
-  const adminTokenCookie = useCookie('auth_token_admin', {
-    path: '/', sameSite: 'lax', secure: false,
-  })
-  const agentTokenCookie = useCookie('auth_token_agent', {
-    path: '/', sameSite: 'lax', secure: false,
-  })
-
-  /**
-   * Retourne le token actif selon le rôle de l'utilisateur en mémoire.
-   * Si pas de user en mémoire, essaie les deux cookies.
-   */
-  const token = computed(() => {
-    const role = user.value?.role
-    if (role === 'admin') return adminTokenCookie.value
-    if (role === 'agent') return agentTokenCookie.value
-    // Fallback : si le user n'est pas encore chargé, cherche n'importe quel cookie actif
-    return adminTokenCookie.value || agentTokenCookie.value || null
-  })
+  const token = computed(() => tokenCookie.value)
 
   const isAuthenticated = computed(() => !!token.value)
 
   const config  = useRuntimeConfig()
-  const apiBase = config.public?.apiBase || 'http://localhost:8000/api'
+  const apiBase = config.public.apiBase 
 
   /**
    * Connexion — endpoint POST /login (admin + agent).
-   * Stocke le token dans le cookie dédié au rôle.
+   * Stocke le token dans le cookie unique.
    */
   async function login(payload) {
     isLoading.value = true
@@ -83,11 +50,7 @@ export const useAuthStore = () => {
       })
 
       if (data.token && data.user) {
-        // Stocke dans le cookie dédié au rôle
-        const role = data.user.role
-        if (role === 'admin') adminTokenCookie.value = data.token
-        if (role === 'agent') agentTokenCookie.value = data.token
-
+        tokenCookie.value = data.token
         user.value = data.user
         writeUserToStorage(data.user)
         return true
@@ -152,17 +115,7 @@ export const useAuthStore = () => {
   }
 
   function logoutState() {
-    // Efface le cookie du rôle actuel
-    const role = user.value?.role
-    if (role === 'admin') adminTokenCookie.value = null
-    else if (role === 'agent') agentTokenCookie.value = null
-    else {
-      adminTokenCookie.value = null
-      agentTokenCookie.value = null
-    }
-    // Efface aussi l'ancien cookie générique si présent
     tokenCookie.value = null
-
     user.value = null
     writeUserToStorage(null)
   }
