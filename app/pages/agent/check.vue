@@ -472,6 +472,8 @@ definePageMeta({ layout: 'agent' })
 const store = useBiensStore()
 const { biens, counts, meta, isLoading, isClaiming, error } = store
 
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 // ── Onglets ──────────────────────────────────────────────────────────────────
 const tabs = [
   { key: 'non_assigne', label: 'Non assignés' },
@@ -492,16 +494,16 @@ const filterType = ref('')
 function applyFilters() { loadBiens() }
 
 // ── Chargement ────────────────────────────────────────────────────────────────
-async function loadBiens(page = 1) {
+async function loadBiens(page = 1, silent = false) {
   await store.fetchBiens({
     onglet:    activeTab.value,
     type_bien: filterType.value || undefined,
     page,
-  })
+  }, silent)
 }
 
-async function refreshAll() {
-  await Promise.all([store.fetchCounts(), loadBiens()])
+async function refreshAll(silent = false) {
+  await Promise.all([store.fetchCounts(), loadBiens(1, silent)])
 }
 
 function switchTab(key: string) {
@@ -533,6 +535,8 @@ async function prendre(id: string) {
   if (result.success) {
     showToast('success', 'Bien pris en charge. Il est maintenant dans votre onglet "En cours".')
     await store.fetchCounts()
+    emitBus('biens')
+    emitBus('stats')
   } else {
     showToast('error', result.message)
   }
@@ -545,6 +549,8 @@ async function publier(id: string) {
   if (result.success) {
     showToast('success', 'Bien publié avec succès.')
     await store.fetchCounts()
+    emitBus('biens')
+    emitBus('stats')
   } else {
     showToast('error', result.message)
   }
@@ -578,6 +584,8 @@ function onRapportSubmitted(rapport: any) {
   rapportModal.open = false
   showToast('success', 'Rapport soumis à l\'administration.')
   refreshAll()
+  emitBus('rapports')
+  emitBus('stats')
 }
 
 // ── Suppression documents ─────────────────────────────────────────────────────
@@ -617,6 +625,8 @@ async function confirmerRejet() {
   if (result.success) {
     showToast('success', 'Bien rejeté. Le propriétaire a été notifié.')
     await store.fetchCounts()
+    emitBus('biens')
+    emitBus('stats')
   } else {
     showToast('error', result.message)
   }
@@ -686,7 +696,27 @@ function statutClass(bien: any): string {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-onMounted(() => { refreshAll() })
+onMounted(() => {
+  // Si des données existent déjà (navigation retour), rafraîchir silencieusement
+  const hasCachedData = biens.value.length > 0
+  refreshAll(hasCachedData)
+  pollTimer = setInterval(() => refreshAll(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') refreshAll(true)
+}
+
+// Bus → écouter ET émettre
+const { on: onBus, emit: emitBus } = useRefreshBus()
+onBus('biens', () => refreshAll(true))
+onBus('stats', () => store.fetchCounts())
 </script>
 
 <style scoped>

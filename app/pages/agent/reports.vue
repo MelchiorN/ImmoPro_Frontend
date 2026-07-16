@@ -224,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { FileText, Plus, Building2, MapPin, Pencil, Loader2, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth/auth'
 
@@ -235,8 +235,9 @@ const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
 // ── State ──────────────────────────────────────────────────────────────────
-const rapports           = ref<any[]>([])
-const isLoading          = ref(true)
+const rapports           = useState<any[]>('agent_rapports_list', () => [])
+const isLoading          = useState('agent_rapports_loading', () => false)
+let   pollTimer: ReturnType<typeof setInterval> | null = null
 const activeFilter       = ref('all')
 const showNewRapportModal = ref(false)
 const biensList          = ref<any[]>([])
@@ -260,8 +261,8 @@ const filteredRapports = computed(() =>
 )
 
 // ── Load rapports ──────────────────────────────────────────────────────────
-async function loadRapports() {
-  isLoading.value = true
+async function loadRapports(silent = false) {
+  if (!silent) isLoading.value = true
   try {
     const data = await $fetch(`${apiBase}/agent/rapports`, {
       headers: { Authorization: `Bearer ${authStore.token.value}` },
@@ -334,6 +335,9 @@ async function saveRapport(statut: string) {
     const idx = rapports.value.findIndex(r => r.id === updated.id)
     if (idx !== -1) rapports.value[idx] = updated
     editingRapport.value = null
+    // Notifier les autres pages que les rapports ont changé
+    emitBus('rapports')
+    if (statut === 'soumis') emitBus('stats')
   } catch (e: any) {
     saveError.value = e?.data?.message ?? 'Erreur lors de la sauvegarde.'
   } finally {
@@ -356,7 +360,25 @@ function formatDate(d: string | null) {
 }
 
 onMounted(() => {
-  loadRapports()
+  // Si des données existent déjà (navigation retour), rafraîchir silencieusement
+  const hasCachedData = rapports.value.length > 0
+  loadRapports(hasCachedData)
   loadBiensEnCours()
+  pollTimer = setInterval(() => loadRapports(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') loadRapports(true)
+}
+
+// Bus → écouter ET émettre
+const { on: onBus, emit: emitBus } = useRefreshBus()
+onBus('rapports', () => loadRapports(true))
+onBus('biens',   () => loadBiensEnCours())
 </script>

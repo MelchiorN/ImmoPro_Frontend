@@ -15,8 +15,8 @@ export const useAgentsStore = () => {
   }
 
   // ── Fetch list ────────────────────────────────────────────────────────────
-  async function fetchAgents(params = {}) {
-    isLoading.value = true
+  async function fetchAgents(params = {}, silent = false) {
+    if (!silent) isLoading.value = true
     error.value     = null
     try {
       const query = new URLSearchParams()
@@ -33,7 +33,7 @@ export const useAgentsStore = () => {
       if (data.total) meta.value = { total: data.total, current_page: data.current_page, last_page: data.last_page }
     } catch (err) {
       console.error('fetchAgents error:', err)
-      error.value = err?.data?.message || 'Impossible de charger les agents.'
+      if (!silent) error.value = err?.data?.message || 'Impossible de charger les agents.'
     } finally {
       isLoading.value = false
     }

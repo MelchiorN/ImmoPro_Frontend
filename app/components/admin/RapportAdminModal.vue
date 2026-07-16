@@ -161,21 +161,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  decided: [decision: string, bienId: string]
+  decided: [decision: string]
 }>()
 
 const store = useAdminBiensStore()
 
-const rapport      = ref<any>(null)
-const isLoading    = ref(true)
+// ── Cache partagé entre ouvertures ─────────────────────────────────────────
+const rapportsCache = useState<Record<string, any>>('admin_rapports_detail_cache', () => ({}))
+
+// Initialiser depuis le cache si disponible
+const rapport      = ref<any>(rapportsCache.value[props.rapportId] ?? null)
+const isLoading    = ref(rapport.value === null) // skeleton seulement si pas de cache
 const isDeciding   = ref(false)
 const decision     = ref<'publier' | 'rejeter' | ''>('')
 
 // ── Chargement ────────────────────────────────────────────────────────────
 async function load() {
-  isLoading.value = true
+  const isSilent = rapportsCache.value[props.rapportId] !== undefined
+  if (!isSilent) isLoading.value = true
   try {
-    rapport.value = await store.fetchRapport(props.rapportId)
+    const data = await store.fetchRapport(props.rapportId)
+    rapport.value = data
+    // Mettre en cache
+    rapportsCache.value = { ...rapportsCache.value, [props.rapportId]: data }
   } finally {
     isLoading.value = false
   }
@@ -210,13 +218,17 @@ async function confirmer(action: 'publier' | 'rejeter') {
 
   if (response.success) {
     rapport.value = response.data
+    // Invalider le cache pour forcer un rechargement frais la prochaine fois
+    const updated = { ...rapportsCache.value }
+    delete updated[props.rapportId]
+    rapportsCache.value = updated
     Swal.fire({
       icon: 'success',
       title: action === 'publier' ? 'Rapport approuvé' : 'Rapport rejeté',
       text: action === 'publier' ? 'Le rapport a été approuvé et le bien publié.' : 'Le rapport a été rejeté avec succès.',
       confirmButtonColor: '#1A56A0',
     })
-    emit('decided', action, rapport.value?.bien?.id)
+    emit('decided', action)
   } else {
     Swal.fire({
       icon: 'error',

@@ -127,13 +127,20 @@
                   >
                     <Pencil :size="14" />
                   </button>
-                  <!-- Changer statut -->
+                  <!-- Suspendre / Activer (toggle direct) -->
                   <button
-                    @click="openStatusMenu(agent, $event)"
-                    title="Changer le statut"
-                    class="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors shadow-sm"
+                    @click="toggleStatus(agent)"
+                    :title="agent.status === 'active' ? 'Suspendre' : 'Activer'"
+                    :class="[
+                      'w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm',
+                      agent.status === 'active'
+                        ? 'bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white'
+                        : 'bg-green-50 text-green-600 hover:bg-green-500 hover:text-white'
+                    ]"
                   >
-                    <ShieldCheck :size="14" />
+                    <span class="material-symbols-outlined text-[17px]">
+                      {{ agent.status === 'active' ? 'block' : 'check_circle' }}
+                    </span>
                   </button>
                   <!-- Supprimer -->
                   <button
@@ -173,31 +180,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ── Status dropdown (contextual) ── -->
-    <Teleport to="body">
-      <div
-        v-if="statusMenu.open"
-        class="fixed inset-0 z-40"
-        @click="statusMenu.open = false"
-      />
-      <div
-        v-if="statusMenu.open"
-        class="fixed z-50 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl py-1 w-44"
-        :style="{ top: statusMenu.y + 'px', left: statusMenu.x + 'px' }"
-      >
-        <button
-          v-for="s in statusOptions"
-          :key="s.value"
-          @click="applyStatus(s.value)"
-          :disabled="statusMenu.current === s.value"
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-container transition-colors disabled:opacity-40"
-        >
-          <span :class="`w-2 h-2 rounded-full ${s.dot}`" />
-          {{ s.label }}
-        </button>
-      </div>
-    </Teleport>
 
     <!-- ── Modal Créer / Modifier ── -->
     <Teleport to="body">
@@ -335,7 +317,7 @@
 import Swal from 'sweetalert2'
 import {
   UserPlus, Search, Eye, EyeOff, Pencil, Trash2,
-  ShieldCheck, X, Users, AlertCircle,
+  X, Users, AlertCircle,
 } from 'lucide-vue-next'
 import { useAgentsStore } from '~/stores/agents'
 
@@ -349,19 +331,20 @@ const searchQuery  = ref('')
 const statusFilter = ref('')
 const currentPage  = ref(1)
 let   searchTimer: ReturnType<typeof setTimeout> | null = null
+let   pollTimer: ReturnType<typeof setInterval> | null = null
 
 function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => { currentPage.value = 1; loadAgents() }, 350)
 }
 
-function loadAgents() {
+function loadAgents(silent = false) {
   store.fetchAgents({
     search:   searchQuery.value || undefined,
     status:   statusFilter.value || undefined,
     page:     currentPage.value,
     per_page: 15,
-  })
+  }, silent)
 }
 
 function changePage(p: number) {
@@ -369,7 +352,26 @@ function changePage(p: number) {
   loadAgents()
 }
 
-onMounted(loadAgents)
+onMounted(() => {
+  // Si des données existent déjà (navigation retour), rafraîchir silencieusement
+  const hasCachedData = agents.value.length > 0
+  loadAgents(hasCachedData)
+  pollTimer = setInterval(() => loadAgents(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') loadAgents(true)
+}
+
+// Bus → écouter ET émettre
+const { on: onBus, emit: emitBus } = useRefreshBus()
+onBus('agents', () => loadAgents())
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function initials(agent: any) {
@@ -389,27 +391,10 @@ const statusMap: Record<string, { label: string; cls: string; dot: string }> = {
 function statusBadge(s: string)  { return `px-2.5 py-0.5 rounded-full text-xs font-bold ${statusMap[s]?.cls ?? ''}` }
 function statusLabel(s: string)  { return statusMap[s]?.label ?? s }
 
-// ── Status menu ───────────────────────────────────────────────────────────────
-const statusOptions = [
-  { value: 'active',    label: 'Activer',    dot: 'bg-tertiary' },
-  { value: 'suspended', label: 'Suspendre',  dot: 'bg-secondary' },
-  { value: 'blocked',   label: 'Bloquer',    dot: 'bg-error' },
-]
-const statusMenu = reactive({ open: false, agent: null as any, current: '', x: 0, y: 0 })
-
-function openStatusMenu(agent: any, event: MouseEvent) {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  statusMenu.agent   = agent
-  statusMenu.current = agent.status
-  statusMenu.x = Math.min(rect.left, window.innerWidth - 192)
-  statusMenu.y = rect.bottom + 4
-  statusMenu.open    = true
-}
-
-async function applyStatus(newStatus: string) {
-  const agent = statusMenu.agent
-  statusMenu.open = false
-  const labels: Record<string, string> = { active: 'activer', suspended: 'suspendre', blocked: 'bloquer' }
+// ── Suspendre / Activer (toggle direct) ──────────────────────────────────────
+async function toggleStatus(agent: any) {
+  const newStatus = agent.status === 'active' ? 'suspended' : 'active'
+  const labels: Record<string, string> = { active: 'activer', suspended: 'suspendre' }
 
   const result = await Swal.fire({
     title: `Confirmer l'action`,
@@ -418,14 +403,16 @@ async function applyStatus(newStatus: string) {
     showCancelButton: true,
     confirmButtonText: 'Confirmer',
     cancelButtonText:  'Annuler',
-    confirmButtonColor: '#003e7e',
+    confirmButtonColor: newStatus === 'active' ? '#16a34a' : '#ea580c',
     cancelButtonColor:  '#737782',
+    reverseButtons: true,
   })
   if (!result.isConfirmed) return
 
   try {
     const res = await store.updateStatus(agent.id, newStatus)
     Swal.fire({ icon: 'success', title: 'Succès', text: res.message, confirmButtonColor: '#003e7e', timer: 2000, showConfirmButton: false })
+    emitBus('agents')
   } catch (err: any) {
     Swal.fire({ icon: 'error', title: 'Erreur', text: err?.data?.message || 'Une erreur est survenue.', confirmButtonColor: '#003e7e' })
   }
@@ -448,6 +435,8 @@ async function confirmDelete(agent: any) {
   try {
     await store.deleteAgent(agent.id)
     Swal.fire({ icon: 'success', title: 'Supprimé', text: 'L\'agent a été supprimé.', confirmButtonColor: '#003e7e', timer: 2000, showConfirmButton: false })
+    emitBus('agents')
+    emitBus('stats')
   } catch (err: any) {
     Swal.fire({ icon: 'error', title: 'Erreur', text: err?.data?.message || 'Impossible de supprimer.', confirmButtonColor: '#003e7e' })
   }
@@ -506,10 +495,13 @@ async function submitForm() {
       await store.createAgent(payload)
       modal.open = false
       Swal.fire({ icon: 'success', title: 'Agent créé !', text: `${form.first_name} ${form.last_name} a été ajouté.`, confirmButtonColor: '#003e7e', timer: 2500, showConfirmButton: false })
+      emitBus('agents')
+      emitBus('stats')
     } else {
       await store.updateAgent(modal.agentId!, payload)
       modal.open = false
       Swal.fire({ icon: 'success', title: 'Mis à jour !', text: 'Les informations ont été enregistrées.', confirmButtonColor: '#003e7e', timer: 2500, showConfirmButton: false })
+      emitBus('agents')
     }
   } catch (err: any) {
     const msg = err?.data?.errors

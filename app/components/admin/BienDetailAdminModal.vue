@@ -315,9 +315,13 @@ const adminStore = useAdminBiensStore()
 const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
+// ── Cache partagé entre ouvertures (useState survit aux re-renders) ─────────
+const biensCache = useState<Record<string, any>>('admin_biens_detail_cache', () => ({}))
+
 // ── State ──────────────────────────────────────────────────────────────────
-const bien        = ref<any>(null)
-const isLoading   = ref(true)
+// Initialiser immédiatement depuis le cache si disponible
+const bien        = ref<any>(biensCache.value[props.bienId] ?? null)
+const isLoading   = ref(bien.value === null) // skeleton seulement si pas de cache
 const loadError   = ref<string | null>(null)
 const selectedIdx = ref(0)
 const lightbox    = reactive({ open: false, index: 0 })
@@ -334,18 +338,22 @@ const currentMedia = computed(() => allMedias.value[selectedIdx.value] ?? null)
 
 // ── Chargement depuis /api/admin/biens/{id} ────────────────────────────────
 async function loadBien() {
-  isLoading.value = true
+  // Si déjà en cache, rafraîchir silencieusement en arrière-plan
+  const isSilent = biensCache.value[props.bienId] !== undefined
+  if (!isSilent) isLoading.value = true
   loadError.value = null
   try {
     const data = await $fetch(`${apiBase}/admin/biens/${props.bienId}`, {
       headers: { Authorization: `Bearer ${authStore.token.value}` },
     }) as any
     bien.value = data.data ?? data
+    // Mettre en cache
+    biensCache.value = { ...biensCache.value, [props.bienId]: bien.value }
     // Sélectionner la photo principale
     const idx = allMedias.value.findIndex((m: any) => m.est_principale)
     selectedIdx.value = idx >= 0 ? idx : 0
   } catch (e: any) {
-    loadError.value = e?.data?.message ?? 'Impossible de charger le dossier.'
+    if (!isSilent) loadError.value = e?.data?.message ?? 'Impossible de charger le dossier.'
   } finally {
     isLoading.value = false
   }
@@ -401,6 +409,9 @@ async function confirmPublish() {
   const res = await adminStore.updateStatut(bien.value.id, 'publie')
   if (res.success) {
     bien.value = { ...bien.value, statut: 'publie' }
+    // Mettre à jour le cache avec le nouveau statut
+    biensCache.value = { ...biensCache.value, [props.bienId]: bien.value }
+    emit('refresh')
     Swal.fire({ icon: 'success', title: 'Bien publié', text: 'Le bien a bien été publié.', confirmButtonColor: '#1A56A0' })
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })
@@ -436,6 +447,9 @@ async function confirmReject() {
   const res = await adminStore.updateStatut(bien.value.id, 'rejete', result.value)
   if (res.success) {
     bien.value = { ...bien.value, statut: 'rejete' }
+    // Mettre à jour le cache avec le nouveau statut
+    biensCache.value = { ...biensCache.value, [props.bienId]: bien.value }
+    emit('refresh')
     Swal.fire({ icon: 'success', title: 'Bien rejeté', text: 'Le bien a bien été rejeté.', confirmButtonColor: '#1A56A0' })
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })

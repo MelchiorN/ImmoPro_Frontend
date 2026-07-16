@@ -16,8 +16,8 @@ export const useAdminBiensStore = () => {
   }
 
   // ── Liste des biens ───────────────────────────────────────────────────────
-  async function fetchBiens(params = {}) {
-    isLoading.value = true
+  async function fetchBiens(params = {}, silent = false) {
+    if (!silent) isLoading.value = true
     error.value     = null
     try {
       const query = new URLSearchParams()
@@ -33,7 +33,7 @@ export const useAdminBiensStore = () => {
       biens.value = data.data ?? []
       if (data.meta) meta.value = data.meta
     } catch (err) {
-      error.value = err?.data?.message || 'Impossible de charger les biens.'
+      if (!silent) error.value = err?.data?.message || 'Impossible de charger les biens.'
     } finally {
       isLoading.value = false
     }
@@ -87,6 +87,8 @@ export const useAdminBiensStore = () => {
       // Mettre à jour localement
       const idx = biens.value.findIndex(b => b.id === id)
       if (idx !== -1) biens.value[idx] = { ...biens.value[idx], ...data.data }
+      // Rafraîchir les compteurs immédiatement
+      await fetchCounts()
       return { success: true, data: data.data }
     } catch (err) {
       return { success: false, message: err?.data?.message || 'Erreur mise à jour statut.' }

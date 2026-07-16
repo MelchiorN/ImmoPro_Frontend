@@ -7,6 +7,19 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
   ],
 
+// Configuration de l'icone de l'application
+  // app: {
+  //   head: {
+  //     link: [
+  //       {
+  //         rel: 'icon',
+  //         type: 'image/png',
+  //         href: '/images/immopro.png',
+  //       },
+  //     ],
+  //   },
+  // },
+
   // Auto-import des composants
   components: {
     global: true,

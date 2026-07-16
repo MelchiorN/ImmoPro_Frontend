@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   ChevronLeft, ChevronRight, CalendarDays, CalendarX, Clock,
 } from 'lucide-vue-next'
@@ -206,14 +206,15 @@ const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
 // ── State ──────────────────────────────────────────────────────────────────
-const visites    = ref<any[]>([])
-const isLoading  = ref(true)
+const visites    = useState<any[]>('agent_visites_list', () => [])
+const isLoading  = useState('agent_visites_loading', () => false)
 const currentDate = ref(new Date())
 const selectedDay = ref<{ date: string; day: number; visites: any[] } | null>(null)
+let   pollTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Charger les visites ────────────────────────────────────────────────────
-async function loadVisites() {
-  isLoading.value = true
+async function loadVisites(silent = false) {
+  if (!silent) isLoading.value = true
   try {
     const data = await $fetch(`${apiBase}/agent/visites`, {
       headers: { Authorization: `Bearer ${authStore.token.value}` },
@@ -355,5 +356,24 @@ function visiteCardClass(s: string): string {
   return 'border-gray-200 bg-gray-50'
 }
 
-onMounted(loadVisites)
+onMounted(() => {
+  // Si des données existent déjà (navigation retour), rafraîchir silencieusement
+  const hasCachedData = visites.value.length > 0
+  loadVisites(hasCachedData)
+  pollTimer = setInterval(() => loadVisites(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') loadVisites(true)
+}
+
+// Bus → écouter ET émettre
+const { on: onBus, emit: emitBus } = useRefreshBus()
+onBus('visites', () => loadVisites(true))
 </script>

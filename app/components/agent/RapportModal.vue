@@ -183,6 +183,9 @@ const emit = defineEmits<{
 
 const store = useRapportsStore()
 
+// Bus — déclaré en setup pour avoir le contexte Vue
+const { emit: emitBus } = useRefreshBus()
+
 const rapport    = ref<any>(null)
 const isLoading  = ref(true)
 const isSaving   = ref(false)
@@ -276,6 +279,9 @@ async function soumettre() {
   isSubmitting.value = false
   if (result.success) {
     rapport.value = result.data
+    // Notifier toutes les pages abonnées
+    emitBus('rapports')
+    emitBus('stats')
     emit('submitted', result.data)
   }
 }

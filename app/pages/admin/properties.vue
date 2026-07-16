@@ -263,6 +263,8 @@ definePageMeta({ layout: 'admin' })
 const store = useAdminBiensStore()
 const { biens, meta, counts, isLoading, error } = store
 
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 // ── Filtres ────────────────────────────────────────────────────────────────
 const search = ref('')
 const activeStatut = ref('')
@@ -280,13 +282,13 @@ function setStatutFilter(key: string) {
 }
 
 // ── Chargement ─────────────────────────────────────────────────────────────
-async function load(page = 1) {
+async function load(page = 1, silent = false) {
   await store.fetchBiens({
     statut: activeStatut.value || undefined,
     type_bien: filterType.value || undefined,
     search: search.value || undefined,
     page,
-  })
+  }, silent)
 }
 
 function goToPage(p: number) { load(p) }
@@ -326,8 +328,9 @@ function openRapport(id: string) { rapportModal.rapportId = id; rapportModal.ope
 function onDecided(decision: string) {
   rapportModal.open = false
   showToast('success', decision === 'publier' ? 'Bien publié avec succès.' : 'Rapport rejeté. L\'agent a été notifié.')
-  load(meta.value.current_page)
-  store.fetchCounts()
+  refreshAfterAction()
+  emitBus('stats')
+  emitBus('biens')
 }
 
 // ── Modal Détail ───────────────────────────────────────────────────────────
@@ -367,6 +370,8 @@ async function actionPublier(bien: any) {
   if (res.success) {
     showToast('success', 'Bien publié.')
     await refreshAfterAction()
+    emitBus('stats')
+    emitBus('biens')
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })
   }
@@ -401,6 +406,8 @@ async function actionRejeter(bien: any) {
   if (res.success) {
     showToast('success', 'Bien rejeté.')
     await refreshAfterAction()
+    emitBus('stats')
+    emitBus('biens')
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })
   }
@@ -424,6 +431,8 @@ async function actionArchiver(bien: any) {
   if (res.success) {
     showToast('success', 'Bien archivé.')
     await refreshAfterAction()
+    emitBus('stats')
+    emitBus('biens')
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })
   }
@@ -472,7 +481,34 @@ function rapportBadgeIcon(s: string) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-onMounted(() => { load(); store.fetchCounts() })
+onMounted(() => {
+  // Si des données existent déjà (navigation retour), rafraîchir silencieusement
+  const hasCachedData = biens.value.length > 0
+  load(meta.value.current_page, hasCachedData)
+  store.fetchCounts()
+  pollTimer = setInterval(() => {
+    store.fetchCounts()
+    load(meta.value.current_page, true)
+  }, 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    store.fetchCounts()
+    load(meta.value.current_page, true)
+  }
+}
+
+// Écouter les events du bus → rafraîchissement immédiat sans skeleton
+const { on: onBus, emit: emitBus } = useRefreshBus()
+onBus('biens', () => refreshAfterAction())
+onBus('stats', () => store.fetchCounts())
 </script>
 
 <style scoped>

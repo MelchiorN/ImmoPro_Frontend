@@ -425,9 +425,12 @@ const props = defineProps<{ bienId: string; activeTab: string }>()
 const emit  = defineEmits<{ close: []; action: [action: string, id: string] }>()
 
 const store     = useBiensStore()
-const authStore = useAuthStore()          // ← appelé dans le contexte setup ✓
+const authStore = useAuthStore()
 const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
+
+// Bus — déclaré en setup pour avoir le contexte Vue
+const { emit: emitBus } = useRefreshBus()
 
 // ── State ─────────────────────────────────────────────────────────────────
 const bien           = ref<any>(null)
@@ -564,6 +567,9 @@ async function planifierVisite() {
     visites.value.push((data as any).visite)
     showVisiteForm.value = false
     visiteForm.date = ''; visiteForm.notes = ''
+    // Notifier le calendrier et le dashboard
+    emitBus('visites')
+    emitBus('stats')
   } catch (e: any) {
     visiteError.value = e?.data?.message ?? 'Erreur lors de la planification.'
   } finally {

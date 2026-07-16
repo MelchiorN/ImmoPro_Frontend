@@ -261,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   Package, CheckCircle2, CalendarCheck, Percent,
   TrendingUp, Check, Clock, AlertCircle,
@@ -277,9 +277,11 @@ const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
 // ── State ──────────────────────────────────────────────────────────────────
-const stats         = ref<any>(null)
-const isLoading     = ref(true)
+// useState persiste entre navigations → pas de skeleton au retour
+const stats         = useState<any>('agent_dashboard_stats', () => null)
+const isLoading     = ref(stats.value === null)
 const miniCalDate   = ref(new Date())
+let   pollTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 const agentPrenom = computed(() => {
@@ -288,8 +290,8 @@ const agentPrenom = computed(() => {
 })
 
 // ── Chargement ─────────────────────────────────────────────────────────────
-async function loadAll() {
-  isLoading.value = true
+async function loadAll(silent = false) {
+  if (!silent && stats.value === null) isLoading.value = true
   try {
     const data = await $fetch(`${apiBase}/agent/stats`, {
       headers: { Authorization: `Bearer ${authStore.token.value}` },
@@ -428,5 +430,24 @@ function priorityClass(p: string | null): string {
   return 'bg-blue-50 text-primary'
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  loadAll(stats.value !== null)
+  pollTimer = setInterval(() => loadAll(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') loadAll(true)
+}
+
+// Écouter les events du bus → rafraîchissement immédiat sans skeleton
+const { on } = useRefreshBus()
+on('stats', () => loadAll(true))
+on('biens', () => loadAll(true))
+on('all',   () => loadAll(true))
 </script>

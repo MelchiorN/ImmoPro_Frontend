@@ -37,8 +37,8 @@ export const useBiensStore = () => {
   }
 
   // ── Liste par onglet ──────────────────────────────────────────────────────
-  async function fetchBiens(params = {}) {
-    isLoading.value = true
+  async function fetchBiens(params = {}, silent = false) {
+    if (!silent) isLoading.value = true
     error.value     = null
     try {
       const query = new URLSearchParams()
@@ -56,7 +56,7 @@ export const useBiensStore = () => {
       if (data.meta) meta.value = data.meta
     } catch (err) {
       console.error('fetchBiens error:', err)
-      error.value = err?.data?.message || 'Impossible de charger les biens.'
+      if (!silent) error.value = err?.data?.message || 'Impossible de charger les biens.'
     } finally {
       isLoading.value = false
     }

@@ -17,7 +17,7 @@
         <div class="relative z-20 flex flex-col items-center text-center max-w-lg">
           <!-- Logo + titre -->
           <div class="mb-6 flex items-center gap-3">
-            <span class="material-symbols-outlined text-[64px] text-white" style="font-variation-settings:'FILL' 1">domain</span>
+            <Building2 class="w-16 h-16 text-white" />
             <h1 class="text-white text-[48px] font-extrabold tracking-tight leading-tight">ImmoPro</h1>
           </div>
 
@@ -33,7 +33,7 @@
               'Accompagnement juridique premium',
             ]" :key="item" class="flex items-center gap-4 text-white">
               <div class="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                <span class="material-symbols-outlined text-white text-[20px]" style="font-variation-settings:'FILL' 1">check_circle</span>
+                <CheckCircle2 class="w-5 h-5 text-white" />
               </div>
               <span class="text-[18px] leading-relaxed">{{ item }}</span>
             </li>
@@ -52,7 +52,7 @@
 
           <!-- Logo mobile -->
           <div class="flex items-center gap-2 mb-6 lg:mb-8">
-            <span class="material-symbols-outlined text-primary text-[32px]" style="font-variation-settings:'FILL' 1">domain</span>
+            <Building2 class="w-8 h-8 text-primary" />
             <span class="text-primary text-[24px] font-semibold tracking-tight">ImmoPro</span>
           </div>
 
@@ -72,7 +72,7 @@
               </label>
               <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-outline text-[18px]">mail</span>
+                  <Mail class="w-[18px] h-[18px] text-outline" />
                 </div>
                 <input
                   id="email"
@@ -92,7 +92,7 @@
               </label>
               <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-outline text-[18px]">lock</span>
+                  <Lock class="w-[18px] h-[18px] text-outline" />
                 </div>
                 <input
                   id="password"
@@ -107,9 +107,7 @@
                   class="absolute inset-y-0 right-0 pr-4 flex items-center text-outline hover:text-primary transition-colors"
                   @click="showPassword = !showPassword"
                 >
-                  <!-- <span class="material-symbols-outlined text-[18px]">
-                    {{ showPassword ? 'visibility_off' : 'visibility' }}
-                  </span> -->
+                  
                 </button>
               </div>
             </div>
@@ -202,6 +200,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth/auth'
+import { Building2, CheckCircle2, Mail, Lock, Eye, EyeOff } from 'lucide-vue-next'
 
 useHead({ title: 'Connexion | ImmoPro - Immobilier de Prestige' })
 
@@ -238,7 +237,7 @@ async function handleVerify(code: string) {
 
 function loginWithGoogle() {
   const config = useRuntimeConfig()
-  const apiBase = config.public?.apiBase || 'http://localhost:8000/api'
+  const apiBase = config.public.apiBase 
   // Redirige vers l'endpoint Laravel Socialite Google
   window.location.href = apiBase.replace('/api', '') + '/auth/google/redirect'
 }

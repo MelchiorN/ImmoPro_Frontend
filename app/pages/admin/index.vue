@@ -178,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '~/stores/auth/auth'
 
 definePageMeta({ layout: 'admin' })
@@ -188,13 +188,16 @@ const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
 // ── State ──────────────────────────────────────────────────────────────────
-const stats        = ref<any>(null)
-const isLoading    = ref(true)
+// useState persiste entre navigations → pas de skeleton au retour
+const stats        = useState<any>('admin_dashboard_stats', () => null)
+const isLoading    = ref(stats.value === null) // skeleton seulement si aucune donnée en cache
 const lastUpdated  = ref('—')
+let   pollTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Load stats ─────────────────────────────────────────────────────────────
-async function loadStats() {
-  isLoading.value = true
+async function loadStats(silent = false) {
+  // Si on a déjà des données, on ne montre jamais le skeleton (refresh silencieux)
+  if (!silent && stats.value === null) isLoading.value = true
   try {
     const data = await $fetch(`${apiBase}/admin/stats`, {
       headers: { Authorization: `Bearer ${authStore.token.value}` },
@@ -255,5 +258,24 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
 }
 
-onMounted(loadStats)
+onMounted(() => {
+  loadStats(stats.value !== null)
+  pollTimer = setInterval(() => loadStats(true), 30_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') loadStats(true)
+}
+
+// Écouter les events du bus → rafraîchissement immédiat sans skeleton
+const { on } = useRefreshBus()
+on('stats', () => loadStats(true))
+on('biens', () => loadStats(true))
+on('all',   () => loadStats(true))
 </script>
