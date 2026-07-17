@@ -203,6 +203,7 @@
           <!-- Actions -->
           <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
             <button
+              v-if="editingRapport.statut !== 'soumis' && editingRapport.statut !== 'valide'"
               class="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors"
               :disabled="isSaving"
               @click="saveRapport('brouillon')"
@@ -210,12 +211,25 @@
               {{ isSaving ? 'Enregistrement…' : 'Sauvegarder brouillon' }}
             </button>
             <button
+              v-if="editingRapport.statut !== 'soumis' && editingRapport.statut !== 'valide'"
               class="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:opacity-90 transition-colors"
               :disabled="isSaving"
               @click="saveRapport('soumis')"
             >
-              Soumettre le rapport
+              {{ isSaving ? 'Soumission…' : 'Soumettre le rapport' }}
             </button>
+            <div
+              v-if="editingRapport.statut === 'soumis'"
+              class="flex-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-bold text-center border border-blue-200"
+            >
+              ✅ Rapport soumis à l'administration
+            </div>
+            <div
+              v-if="editingRapport.statut === 'valide'"
+              class="flex-1 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-bold text-center border border-green-200"
+            >
+              ✅ Rapport approuvé
+            </div>
           </div>
         </div>
       </div>
@@ -320,26 +334,55 @@ function editRapport(rapport: any) {
   saveError.value = null
 }
 
-// ── Save rapport ───────────────────────────────────────────────────────────
+// ── Save rapport (brouillon uniquement) ───────────────────────────────────
 async function saveRapport(statut: string) {
   if (!editingRapport.value) return
+
+  // Si l'agent soumet, utiliser la route dédiée /soumettre
+  if (statut === 'soumis') {
+    return await soumettreFinal()
+  }
+
   isSaving.value  = true
   saveError.value = null
   try {
     const data = await $fetch(`${apiBase}/agent/rapports/${editingRapport.value.id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${authStore.token.value}` },
-      body: { ...editForm.value, statut },
+      body: { ...editForm.value },
     })
     const updated = (data as any).data
     const idx = rapports.value.findIndex(r => r.id === updated.id)
     if (idx !== -1) rapports.value[idx] = updated
     editingRapport.value = null
-    // Notifier les autres pages que les rapports ont changé
     emitBus('rapports')
-    if (statut === 'soumis') emitBus('stats')
   } catch (e: any) {
     saveError.value = e?.data?.message ?? 'Erreur lors de la sauvegarde.'
+  } finally {
+    isSaving.value = false
+  }
+}
+
+// ── Soumettre le rapport à l'admin ─────────────────────────────────────────
+async function soumettreFinal() {
+  if (!editingRapport.value) return
+  isSaving.value  = true
+  saveError.value = null
+  try {
+    // D'abord sauvegarder le contenu puis soumettre en une seule requête
+    const data = await $fetch(`${apiBase}/agent/rapports/${editingRapport.value.id}/soumettre`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authStore.token.value}` },
+      body: { ...editForm.value },
+    })
+    const updated = (data as any).data
+    const idx = rapports.value.findIndex(r => r.id === updated.id)
+    if (idx !== -1) rapports.value[idx] = updated
+    editingRapport.value = null
+    emitBus('rapports')
+    emitBus('stats')
+  } catch (e: any) {
+    saveError.value = e?.data?.message ?? 'Erreur lors de la soumission.'
   } finally {
     isSaving.value = false
   }

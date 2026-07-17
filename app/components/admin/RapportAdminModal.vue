@@ -107,8 +107,8 @@
                       : 'bg-white text-green-600 border-green-200 hover:border-green-400'
                   ]"
                 >
-                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
-                  Approuver et publier
+                  <span class="material-symbols-outlined text-[18px]">verified</span>
+                  Approuver le rapport
                 </button>
                 <button
                   type="button"
@@ -124,15 +124,19 @@
                   Rejeter le rapport
                 </button>
               </div>
+              <p class="text-xs text-gray-400 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+                <span class="material-symbols-outlined text-teal-500 text-[14px] align-middle mr-1">info</span>
+                En approuvant, le propriétaire recevra une notification pour publier son bien lui-même.
+              </p>
 
             </div>
 
             <!-- Résultat si déjà traité -->
-            <div v-if="rapport.statut === 'valide'" class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-              <span class="material-symbols-outlined text-green-600 text-2xl">task_alt</span>
+            <div v-if="rapport.statut === 'valide'" class="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center gap-3">
+              <span class="material-symbols-outlined text-teal-600 text-2xl">task_alt</span>
               <div>
-                <p class="font-bold text-green-700 text-sm">Rapport approuvé — bien publié</p>
-                <p class="text-xs text-green-600 mt-0.5">Ce rapport a été validé et le bien est en ligne.</p>
+                <p class="font-bold text-teal-700 text-sm">Rapport approuvé</p>
+                <p class="text-xs text-teal-600 mt-0.5">Le propriétaire a été notifié et peut publier son bien.</p>
               </div>
             </div>
 
@@ -193,10 +197,10 @@ async function load() {
 async function confirmer(action: 'publier' | 'rejeter') {
   decision.value = action
 
-  const confirmTitle = action === 'publier' ? 'Approuver et publier' : 'Rejeter'
+  const confirmTitle = action === 'publier' ? 'Approuver ce rapport' : 'Rejeter ce rapport'
   const confirmText = action === 'publier'
-    ? 'Le rapport sera approuvé et le bien publié immédiatement.'
-    : 'Le rapport sera rejeté immédiatement.'
+    ? 'Le rapport sera approuvé. Le propriétaire recevra une notification pour publier son bien.'
+    : 'Le rapport sera rejeté et l\'agent devra le corriger.'
 
   const result = await Swal.fire({
     title: confirmTitle,
@@ -225,7 +229,9 @@ async function confirmer(action: 'publier' | 'rejeter') {
     Swal.fire({
       icon: 'success',
       title: action === 'publier' ? 'Rapport approuvé' : 'Rapport rejeté',
-      text: action === 'publier' ? 'Le rapport a été approuvé et le bien publié.' : 'Le rapport a été rejeté avec succès.',
+      text: action === 'publier'
+        ? 'Le rapport a été approuvé. Le propriétaire peut maintenant publier son bien.'
+        : 'Le rapport a été rejeté. L\'agent a été notifié.',
       confirmButtonColor: '#1A56A0',
     })
     emit('decided', action)

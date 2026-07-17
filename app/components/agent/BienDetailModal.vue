@@ -129,6 +129,23 @@
                 <h3 class="text-sm font-bold text-gray-700 mb-1">Description</h3>
                 <p class="text-sm text-gray-500 leading-relaxed">{{ bien.description }}</p>
               </div>
+
+              <!-- Caractéristiques dynamiques -->
+              <div v-if="caracteristiques.length > 0">
+                <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[#003e7e] text-[16px]">tune</span>
+                  Caractéristiques
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div
+                    v-for="carac in caracteristiques" :key="carac.key"
+                    class="p-2.5 bg-gray-50 rounded-xl border border-gray-100"
+                  >
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wide truncate">{{ carac.label }}</p>
+                    <p class="text-xs font-bold text-gray-800 mt-0.5">{{ carac.display }}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- ── Colonne droite (5/12) ── -->
@@ -468,6 +485,7 @@ const statutLabel = computed(() => {
   if (!bien.value) return ''
   if (props.activeTab === 'non_assigne') return 'EN ATTENTE'
   if (props.activeTab === 'en_cours')    return 'EN COURS'
+  if (bien.value.statut === 'valide')    return 'APPROUVÉ'
   if (bien.value.statut === 'publie')    return 'PUBLIÉ'
   if (bien.value.statut === 'rejete')    return 'REJETÉ'
   return bien.value.statut?.toUpperCase() ?? '—'
@@ -476,7 +494,9 @@ const statutClass = computed(() => {
   if (!bien.value) return ''
   if (props.activeTab === 'non_assigne') return 'bg-orange-50 text-orange-700 border-orange-200'
   if (props.activeTab === 'en_cours')    return 'bg-blue-50 text-blue-700 border-blue-200'
+  if (bien.value.statut === 'valide')    return 'bg-teal-50 text-teal-700 border-teal-200'
   if (bien.value.statut === 'publie')    return 'bg-green-50 text-green-700 border-green-200'
+  if (bien.value.statut === 'rejete')    return 'bg-red-50 text-red-700 border-red-200'
   return 'bg-gray-100 text-gray-500 border-gray-200'
 })
 
@@ -609,9 +629,31 @@ function formatPrice(p: number): string {
 }
 const typeLabels: Record<string, string> = {
   appartement: 'Appartement', maison: 'Maison', villa: 'Villa',
-  terrain: 'Terrain', bureau_commerce: 'Bureau / Commerce',
+  terrain: 'Terrain', bureau_commerce: 'Bureau / Commerce', chambre_studio: 'Chambre / Studio',
 }
 function formatType(t: string): string { return typeLabels[t] ?? t }
+
+// ── Caractéristiques dynamiques ────────────────────────────────────────────
+const caracteristiques = computed(() => {
+  const raw = bien.value?.caracteristiques
+  if (!raw || typeof raw !== 'object') return []
+  return Object.entries(raw)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([key, value]) => ({
+      key,
+      label: key.replaceAll('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      display: formatCaracValue(value),
+    }))
+})
+
+function formatCaracValue(value: any): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'boolean') return value ? 'Oui' : 'Non'
+  if (typeof value === 'string') {
+    return value.replaceAll('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+  }
+  return String(value)
+}
 function visiteStatutLabel(s: string): string {
   const map: Record<string, string> = {
     planifiee: 'planifiée', confirmee: 'confirmée',

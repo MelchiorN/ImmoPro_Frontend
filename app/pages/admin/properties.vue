@@ -46,6 +46,7 @@
             <option value="">Tous</option>
             <option value="en_attente">En attente</option>
             <option value="en_cours">En cours</option>
+            <option value="valide">Approuvés</option>
             <option value="publie">Publiés</option>
             <option value="rejete">Rejetés</option>
           </select>
@@ -59,6 +60,7 @@
             <option value="villa">Villa</option>
             <option value="terrain">Terrain</option>
             <option value="bureau_commerce">Bureau / Commerce</option>
+            <option value="chambre_studio">Chambre / Studio</option>
           </select>
         </div>
       </div>
@@ -178,7 +180,7 @@
                   <button v-if="['en_attente','en_cours'].includes(bien.statut)"
                     type="button"
                     @click.stop.prevent="actionPublier(bien)"
-                    class="w-8 h-8 rounded-full bg-green-50 text-green-700 flex items-center justify-center hover:bg-green-600 hover:text-white transition-colors" title="Publier">
+                    class="w-8 h-8 rounded-full bg-green-50 text-green-700 flex items-center justify-center hover:bg-green-600 hover:text-white transition-colors" title="Approuver">
                     <span class="material-symbols-outlined text-[17px]">check_circle</span>
                   </button>
                   <button v-if="['en_attente','en_cours'].includes(bien.statut)"
@@ -311,6 +313,7 @@ const pagesToShow = computed(() => {
 const kpiCards = [
   { key: 'en_attente', label: 'En attente', icon: 'schedule', bg: 'bg-orange-100', color: 'text-orange-600' },
   { key: 'en_cours', label: 'En cours', icon: 'autorenew', bg: 'bg-blue-100', color: 'text-blue-600' },
+  { key: 'valide', label: 'Approuvés', icon: 'verified', bg: 'bg-teal-100', color: 'text-teal-600' },
   { key: 'publie', label: 'Publiés', icon: 'check_circle', bg: 'bg-green-100', color: 'text-green-600' },
   { key: 'rejete', label: 'Rejetés', icon: 'cancel', bg: 'bg-red-100', color: 'text-red-600' },
 ]
@@ -354,11 +357,11 @@ async function actionPublier(bien: any) {
   }
 
   const result = await Swal.fire({
-    title: 'Publier ce bien ?',
-    html: `<b>${bien.titre}</b> sera visible publiquement.`,
+    title: 'Approuver ce bien ?',
+    html: `<b>${bien.titre}</b> sera marqué comme approuvé. Le propriétaire pourra ensuite le publier.`,
     icon: 'question',
     showCancelButton: true,
-    confirmButtonText: 'Oui, publier',
+    confirmButtonText: 'Oui, approuver',
     cancelButtonText: 'Annuler',
     confirmButtonColor: '#16a34a',
     cancelButtonColor: '#6b7280',
@@ -366,9 +369,9 @@ async function actionPublier(bien: any) {
   })
   if (!result.isConfirmed) return
 
-  const res = await store.updateStatut(bien.id, 'publie')
+  const res = await store.updateStatut(bien.id, 'valide')
   if (res.success) {
-    showToast('success', 'Bien publié.')
+    showToast('success', 'Bien approuvé. Le propriétaire peut maintenant le publier.')
     await refreshAfterAction()
     emitBus('stats')
     emitBus('biens')
@@ -441,7 +444,7 @@ async function actionArchiver(bien: any) {
 // ── Helpers ────────────────────────────────────────────────────────────────
 const typeLabels: Record<string, string> = {
   appartement: 'Appartement', maison: 'Maison', villa: 'Villa',
-  terrain: 'Terrain', bureau_commerce: 'Bureau / Commerce',
+  terrain: 'Terrain', bureau_commerce: 'Bureau / Commerce', chambre_studio: 'Chambre / Studio',
 }
 function formatType(t: string) { return typeLabels[t] ?? t }
 function formatPrix(p: number) {
@@ -458,13 +461,21 @@ function agentInitials(agent: any) {
 function bienStatutClass(s: string) {
   if (s === 'en_attente') return 'bg-orange-50 text-orange-700 border-orange-200'
   if (s === 'en_cours') return 'bg-blue-50 text-blue-700 border-blue-200'
+  if (s === 'valide') return 'bg-teal-50 text-teal-700 border-teal-200'
   if (s === 'publie') return 'bg-green-50 text-green-700 border-green-200'
   if (s === 'rejete') return 'bg-red-50 text-red-700 border-red-200'
   if (s === 'archive') return 'bg-gray-100 text-gray-500 border-gray-200'
   return 'bg-gray-100 text-gray-500 border-gray-200'
 }
 function bienStatutLabel(s: string) {
-  const m: Record<string, string> = { en_attente: 'EN ATTENTE', en_cours: 'EN COURS', publie: 'PUBLIÉ', rejete: 'REJETÉ', archive: 'ARCHIVÉ' }
+  const m: Record<string, string> = {
+    en_attente: 'EN ATTENTE',
+    en_cours: 'EN COURS',
+    valide: 'APPROUVÉ',
+    publie: 'PUBLIÉ',
+    rejete: 'REJETÉ',
+    archive: 'ARCHIVÉ',
+  }
   return m[s] ?? s.toUpperCase()
 }
 function rapportBadgeClass(s: string) {

@@ -8,7 +8,7 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-grow px-4 mt-4 space-y-1">
+    <nav class="flex-grow overflow-y-auto scrollbar-hide px-4 mt-4 space-y-1">
       <NuxtLink
         v-for="item in navItems"
         :key="item.id"
@@ -89,5 +89,14 @@ function isActive(href: string): boolean {
 <style scoped>
 .sidebar-active {
   @apply bg-white/10 border-l-4 border-white;
+}
+
+/* Masquer la barre de défilement tout en gardant le scroll */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

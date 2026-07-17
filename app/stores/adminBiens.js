@@ -3,7 +3,7 @@ import { useAuthStore } from '~/stores/auth/auth'
 export const useAdminBiensStore = () => {
   const biens     = useState('admin_biens_list',    () => [])
   const meta      = useState('admin_biens_meta',    () => ({ total: 0, current_page: 1, last_page: 1, per_page: 20 }))
-  const counts    = useState('admin_biens_counts',  () => ({ en_attente: 0, en_cours: 0, publie: 0, rejete: 0 }))
+  const counts    = useState('admin_biens_counts',  () => ({ en_attente: 0, en_cours: 0, valide: 0, publie: 0, rejete: 0 }))
   const isLoading = useState('admin_biens_loading', () => false)
   const error     = useState('admin_biens_error',   () => null)
 
@@ -42,7 +42,7 @@ export const useAdminBiensStore = () => {
   // ── Compteurs par statut ──────────────────────────────────────────────────
   async function fetchCounts() {
     try {
-      const statuts = ['en_attente', 'en_cours', 'publie', 'rejete']
+      const statuts = ['en_attente', 'en_cours', 'valide', 'publie', 'rejete']
       const results = await Promise.all(
         statuts.map(s =>
           $fetch(`${apiBase}/admin/biens?statut=${s}&per_page=1`, { headers: authHeaders() })

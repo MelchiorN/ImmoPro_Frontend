@@ -99,6 +99,7 @@
             <option value="villa">Villa</option>
             <option value="terrain">Terrain</option>
             <option value="bureau_commerce">Bureau / Commerce</option>
+            <option value="chambre_studio">Chambre / Studio</option>
           </select>
           <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
             <span>Date</span>
@@ -376,41 +377,8 @@
       </div>
     </div>
 
-    <!-- ── Modal rejet ── -->
+    <!-- ── Modals ── -->
     <Teleport to="body">
-      <div
-        v-if="rejectModal.open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-        @click.self="rejectModal.open = false"
-      >
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-          <h3 class="text-lg font-bold text-gray-800 mb-1">Rejeter ce bien</h3>
-          <p class="text-sm text-gray-500 mb-4">
-            <strong>{{ rejectModal.bien?.titre }}</strong> — indiquez le motif au propriétaire.
-          </p>
-          <textarea
-            v-model="rejectModal.note"
-            rows="4"
-            placeholder="Motif du rejet (obligatoire)…"
-            class="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-red-300 outline-none"
-          />
-          <div class="flex justify-end gap-3 mt-4">
-            <button
-              class="px-4 py-2 rounded-lg text-gray-600 text-sm font-semibold hover:bg-gray-100 transition-colors"
-              @click="rejectModal.open = false"
-            >
-              Annuler
-            </button>
-            <button
-              :disabled="!rejectModal.note.trim() || isSubmitting === rejectModal.bien?.id"
-              class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 transition-colors"
-              @click="confirmerRejet"
-            >
-              Confirmer le rejet
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- ── Modal confirmation suppression documents ── -->
       <div
@@ -528,26 +496,11 @@ function showToast(type: 'success' | 'error', message: string) {
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────
-const isSubmitting = ref<string | null>(null)
 
 async function prendre(id: string) {
   const result = await store.claimBien(id)
   if (result.success) {
     showToast('success', 'Bien pris en charge. Il est maintenant dans votre onglet "En cours".')
-    await store.fetchCounts()
-    emitBus('biens')
-    emitBus('stats')
-  } else {
-    showToast('error', result.message)
-  }
-}
-
-async function publier(id: string) {
-  isSubmitting.value = id
-  const result = await store.updateStatut(id, 'publie')
-  isSubmitting.value = null
-  if (result.success) {
-    showToast('success', 'Bien publié avec succès.')
     await store.fetchCounts()
     emitBus('biens')
     emitBus('stats')
@@ -566,9 +519,8 @@ function openDetailModal(bien: any) {
 }
 function onModalAction(action: string, id: string) {
   detailModal.open = false
-  if (action === 'claim')   prendre(id)
-  if (action === 'publier') publier(id)
-  if (action === 'rejeter') openRejectModal({ id, titre: '' })
+  if (action === 'claim') prendre(id)
+  // 'publier' et 'rejeter' sont désormais des actions admin uniquement
 }
 
 // ── Modal rapport ─────────────────────────────────────────────────────────────
@@ -606,31 +558,8 @@ async function executerSuppressionDocuments() {
 }
 
 // ── Modal rejet ───────────────────────────────────────────────────────────────
-const rejectModal = reactive<{
-  open: boolean
-  bien: { id: string; titre: string } | null
-  note: string
-}>({ open: false, bien: null, note: '' })
-function openRejectModal(bien: any) {
-  rejectModal.bien = bien
-  rejectModal.note = ''
-  rejectModal.open = true
-}
-async function confirmerRejet() {
-  if (!rejectModal.bien || !rejectModal.note.trim()) return
-  isSubmitting.value = rejectModal.bien.id
-  const result = await store.updateStatut(rejectModal.bien.id, 'rejete', rejectModal.note.trim())
-  isSubmitting.value = null
-  rejectModal.open = false
-  if (result.success) {
-    showToast('success', 'Bien rejeté. Le propriétaire a été notifié.')
-    await store.fetchCounts()
-    emitBus('biens')
-    emitBus('stats')
-  } else {
-    showToast('error', result.message)
-  }
-}
+// (Supprimé — le rejet est une action admin uniquement)
+
 
 // ── Helpers Rapport ───────────────────────────────────────────────────────────
 function rapportBadgeClass(rapport: any): string {
@@ -683,6 +612,7 @@ function formatType(t: string): string { return typeLabels[t] ?? t }
 function statutLabel(bien: any): string {
   if (activeTab.value === 'non_assigne') return 'EN ATTENTE'
   if (activeTab.value === 'en_cours')    return 'EN COURS'
+  if (bien.statut === 'valide')          return 'APPROUVÉ'
   if (bien.statut === 'publie')          return 'PUBLIÉ'
   if (bien.statut === 'rejete')          return 'REJETÉ'
   return bien.statut?.toUpperCase() ?? '—'
@@ -690,6 +620,7 @@ function statutLabel(bien: any): string {
 function statutClass(bien: any): string {
   if (activeTab.value === 'non_assigne') return 'bg-orange-50 text-orange-700 border-orange-200'
   if (activeTab.value === 'en_cours')    return 'bg-blue-50 text-blue-700 border-blue-200'
+  if (bien.statut === 'valide')          return 'bg-teal-50 text-teal-700 border-teal-200'
   if (bien.statut === 'publie')          return 'bg-green-50 text-green-700 border-green-200'
   if (bien.statut === 'rejete')          return 'bg-red-50 text-red-700 border-red-200'
   return 'bg-gray-100 text-gray-500 border-gray-200'

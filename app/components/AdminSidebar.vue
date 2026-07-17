@@ -7,7 +7,7 @@
     </div>
 
     <!-- Navigation Menu -->
-    <nav class="flex-grow px-4 mt-4 space-y-1">
+    <nav class="flex-grow overflow-y-auto scrollbar-hide px-4 mt-4 space-y-1">
       <NuxtLink 
         v-for="item in navItems" 
         :key="item.id"
@@ -23,11 +23,15 @@
     </nav>
     <div class="p-6 mt-auto border-t border-white/10">
       <div class="flex items-center gap-3">
-        <img 
-          class="w-10 h-10 rounded-full border-2 border-white/20 object-cover" 
-          :src="authStore.user?.profile_picture || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCBa9j6JX1mj_vkWWtbL2iJb_vQLaR7kdp8_5PeAEvzmAnp3sWT4nh-Fr-k1i0fYI3bD1IXQhPPaAmVkRcvprkRn209aFuNH-xEl_UKLFC98ZT3k33-PJSlmFUS9d8HkvVp32pC58brKRXWdGVEhXldff_qft7gHFrsSpCrlEtDX7012bDTC3HaysUoKJnrSiqTPnjhfrdVMsE6qdkvSplLA7cUbyx55XDix59DJ4IN88CXnHALPMKpku8HbzmP9a1GmtwhqqH8BH0'"
-          alt="Admin Profile"
-        />
+        <div class="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden shrink-0 bg-white/20 flex items-center justify-center">
+          <img 
+            v-if="profilePicture"
+            class="w-full h-full object-cover" 
+            :src="profilePicture"
+            alt="Admin Profile"
+          />
+          <span v-else class="text-sm font-bold">{{ avatarInitials }}</span>
+        </div>
         <div class="overflow-hidden">
           <p class="text-sm font-bold truncate">
             {{ displayName }}
@@ -56,7 +60,15 @@ const displayName = computed(() => {
 })
 
 const displayEmail = computed(() => {
-  return authStore.user?.value?.email || 'admin@gmail.com'
+  return authStore.user?.value?.email || 'admin@immopro.fr'
+})
+
+const profilePicture = computed(() => authStore.user?.value?.profile_picture || null)
+
+const avatarInitials = computed(() => {
+  const u = authStore.user?.value
+  if (!u) return 'A'
+  return `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?? ''}`.toUpperCase() || 'A'
 })
 
 const navItems = [
@@ -64,11 +76,12 @@ const navItems = [
   { id: 2,  label: 'Agents',         icon: 'support_agent',        href: '/admin/agents' },
   { id: 3,  label: 'Utilisateurs',   icon: 'group',                href: '/admin/users' },
   { id: 4,  label: 'Biens/Annonces', icon: 'home_work',            href: '/admin/properties' },
-  { id: 5,  label: 'Vérificateurs',  icon: 'verified_user',        href: '/admin/verifiers' },
-  { id: 6,  label: 'Transactions',   icon: 'payments',             href: '/admin/transactions' },
-  { id: 7,  label: 'Commissions',    icon: 'percent',              href: '/admin/commissions' },
-  { id: 8,  label: 'Alertes',        icon: 'notifications_active', href: '/admin/alerts' },
-  { id: 9,  label: 'Rapports',       icon: 'analytics',            href: '/admin/reports' },
+  { id: 5,  label: 'Catégories',     icon: 'category',             href: '/admin/categories' },
+  { id: 6,  label: 'Vérificateurs',  icon: 'verified_user',        href: '/admin/verifiers' },
+  { id: 7,  label: 'Transactions',   icon: 'payments',             href: '/admin/transactions' },
+  { id: 8,  label: 'Commissions',    icon: 'percent',              href: '/admin/commissions' },
+  { id: 9,  label: 'Alertes',        icon: 'notifications_active', href: '/admin/alerts' },
+  { id: 10, label: 'Rapports',       icon: 'analytics',            href: '/admin/reports' },
 ]
 
 // Highlight active item based on current route
@@ -86,5 +99,14 @@ watch(() => route.path, updateActive)
 <style scoped>
 .sidebar-active {
   @apply bg-white/10 border-l-4 border-white;
+}
+
+/* Masquer la barre de défilement tout en gardant le scroll */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

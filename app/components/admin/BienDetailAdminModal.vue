@@ -112,6 +112,23 @@
                 <h3 class="text-sm font-bold text-gray-700 mb-1">Description</h3>
                 <p class="text-sm text-gray-500 leading-relaxed">{{ bien.description }}</p>
               </div>
+
+              <!-- Caractéristiques dynamiques -->
+              <div v-if="caracteristiques.length > 0">
+                <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[#1A56A0] text-[16px]">tune</span>
+                  Caractéristiques
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div
+                    v-for="carac in caracteristiques" :key="carac.key"
+                    class="p-2.5 bg-gray-50 rounded-xl border border-gray-100"
+                  >
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wide truncate">{{ carac.label }}</p>
+                    <p class="text-xs font-bold text-gray-800 mt-0.5">{{ carac.display }}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- ── Colonne droite (5/12) ────────────────────────────────────── -->
@@ -204,7 +221,7 @@
                 @click.stop.prevent="confirmPublish"
                 class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 flex items-center gap-1.5"
               >
-                <span class="material-symbols-outlined text-[16px]">check_circle</span>Publier
+                <span class="material-symbols-outlined text-[16px]">verified</span>Approuver
               </button>
               <button
                 v-if="['en_attente','en_cours'].includes(bien.statut)"
@@ -394,11 +411,11 @@ function handleEscape() {
 async function confirmPublish() {
   if (!bien.value) return
   const result = await Swal.fire({
-    title: 'Publier ce bien ?',
-    html: `<b>${bien.value.titre}</b> sera visible publiquement sur la plateforme.`,
+    title: 'Approuver ce bien ?',
+    html: `<b>${bien.value.titre}</b> sera marqué comme approuvé. Le propriétaire pourra ensuite le publier sur la plateforme.`,
     icon: 'question',
     showCancelButton: true,
-    confirmButtonText: 'Oui, publier',
+    confirmButtonText: 'Oui, approuver',
     cancelButtonText: 'Annuler',
     confirmButtonColor: '#16a34a',
     cancelButtonColor: '#6b7280',
@@ -406,13 +423,17 @@ async function confirmPublish() {
   })
   if (!result.isConfirmed) return
 
-  const res = await adminStore.updateStatut(bien.value.id, 'publie')
+  const res = await adminStore.updateStatut(bien.value.id, 'valide')
   if (res.success) {
-    bien.value = { ...bien.value, statut: 'publie' }
-    // Mettre à jour le cache avec le nouveau statut
+    bien.value = { ...bien.value, statut: 'valide' }
     biensCache.value = { ...biensCache.value, [props.bienId]: bien.value }
     emit('refresh')
-    Swal.fire({ icon: 'success', title: 'Bien publié', text: 'Le bien a bien été publié.', confirmButtonColor: '#1A56A0' })
+    Swal.fire({
+      icon: 'success',
+      title: 'Bien approuvé',
+      text: 'Le bien a été approuvé. Le propriétaire peut maintenant le publier.',
+      confirmButtonColor: '#1A56A0',
+    })
   } else {
     Swal.fire({ icon: 'error', title: 'Erreur', text: res.message, confirmButtonColor: '#1A56A0' })
   }
@@ -477,18 +498,49 @@ function formatPrix(p: number): string {
   return `${amount} FCFA`
 }
 const typeLabels: Record<string,string> = {
-  appartement:'Appartement', maison:'Maison', villa:'Villa', terrain:'Terrain', bureau_commerce:'Bureau/Commerce',
+  appartement:'Appartement', maison:'Maison', villa:'Villa', terrain:'Terrain',
+  bureau_commerce:'Bureau/Commerce', chambre_studio:'Chambre/Studio',
 }
 function formatType(t: string): string { return typeLabels[t] ?? t }
+
+// ── Caractéristiques dynamiques ────────────────────────────────────────────
+const caracteristiques = computed(() => {
+  const raw = bien.value?.caracteristiques
+  if (!raw || typeof raw !== 'object') return []
+  return Object.entries(raw)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([key, value]) => ({
+      key,
+      label: key.replaceAll('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      display: formatCaracValue(value),
+    }))
+})
+
+function formatCaracValue(value: any): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'boolean') return value ? 'Oui' : 'Non'
+  if (typeof value === 'string') {
+    return value.replaceAll('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+  }
+  return String(value)
+}
 function bienStatutClass(s: string): string {
   if (s === 'en_attente') return 'bg-orange-50 text-orange-700 border-orange-200'
   if (s === 'en_cours')   return 'bg-blue-50 text-blue-700 border-blue-200'
+  if (s === 'valide')     return 'bg-teal-50 text-teal-700 border-teal-200'
   if (s === 'publie')     return 'bg-green-50 text-green-700 border-green-200'
   if (s === 'rejete')     return 'bg-red-50 text-red-700 border-red-200'
   return 'bg-gray-100 text-gray-500 border-gray-200'
 }
 function bienStatutLabel(s: string): string {
-  const m: Record<string,string> = { en_attente:'EN ATTENTE', en_cours:'EN COURS', publie:'PUBLIÉ', rejete:'REJETÉ', archive:'ARCHIVÉ' }
+  const m: Record<string,string> = {
+    en_attente: 'EN ATTENTE',
+    en_cours:   'EN COURS',
+    valide:     'APPROUVÉ',
+    publie:     'PUBLIÉ',
+    rejete:     'REJETÉ',
+    archive:    'ARCHIVÉ',
+  }
   return m[s] ?? s?.toUpperCase() ?? '—'
 }
 

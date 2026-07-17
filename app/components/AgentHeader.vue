@@ -15,10 +15,7 @@
     <div class="flex items-center gap-4">
 
       <!-- Notifications -->
-      <button class="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
-        <span class="material-symbols-outlined text-gray-700 text-[22px]">notifications</span>
-        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#1a56a0] rounded-full border-2 border-white"></span>
-      </button>
+      <NotificationBell />
 
       <!-- Paramètres -->
       <button
