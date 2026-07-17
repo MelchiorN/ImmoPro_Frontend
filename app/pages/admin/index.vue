@@ -22,11 +22,11 @@
       >
         <div class="flex items-center justify-between mb-1">
           <p class="text-sm text-[#888888] font-medium">{{ kpi.label }}</p>
-          <span class="material-symbols-outlined text-[18px]" :class="kpi.iconClass">{{ kpi.icon }}</span>
+          <component :is="kpi.icon" :size="18" :class="kpi.iconClass" />
         </div>
         <h3 class="text-2xl font-bold text-[#1A56A0]">{{ kpi.value }}</h3>
         <p :class="['text-xs mt-2 flex items-center gap-1', kpi.trendClass]">
-          <span class="material-symbols-outlined text-sm">{{ kpi.trendIcon }}</span>
+          <component :is="kpi.trendIcon" :size="12" />
           {{ kpi.trend }}
         </p>
       </div>
@@ -56,10 +56,10 @@
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-12 h-10 rounded-lg bg-cover bg-center bg-gray-100 flex-shrink-0"
+                class="w-12 h-10 rounded-lg bg-cover bg-center bg-gray-100 flex-shrink-0 flex items-center justify-center"
                 :style="bien.photo ? { backgroundImage: `url('${bien.photo}')` } : {}"
               >
-                <span v-if="!bien.photo" class="material-symbols-outlined text-gray-300 flex items-center justify-center h-full text-2xl">image_not_supported</span>
+                <ImageOff v-if="!bien.photo" :size="18" class="text-gray-300" />
               </div>
               <div>
                 <p class="text-xs font-bold truncate max-w-[180px]">{{ bien.titre }}</p>
@@ -67,7 +67,7 @@
               </div>
             </div>
             <div class="flex gap-2 flex-shrink-0">
-              <span class="px-2 py-0.5 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-full">En attente</span>
+              <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">En attente</span>
             </div>
           </div>
         </div>
@@ -174,16 +174,96 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Finances : Commissions & Reversements ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+      <!-- KPI Commissions — bleu fonce -->
+      <div class="bg-gradient-to-br from-[#003e7e] to-[#1A56A0] p-6 rounded-2xl text-white shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <TrendingUp :size="20" class="text-blue-200" />
+            Commissions
+          </h2>
+          <NuxtLink to="/admin/commissions"
+            class="text-xs text-blue-200 hover:text-white underline transition-colors">Voir tout →</NuxtLink>
+        </div>
+        <div v-if="isLoadingFinance" class="space-y-3">
+          <div v-for="i in 3" :key="i" class="h-5 bg-white/20 rounded animate-pulse" />
+        </div>
+        <div v-else class="space-y-3">
+          <div class="flex justify-between items-center py-1 border-b border-white/10">
+            <span class="text-blue-100 text-sm flex items-center gap-1.5">
+              <Banknote :size="13" class="text-blue-200" /> Total perçu
+            </span>
+            <span class="font-extrabold text-lg">{{ formatMontantDash(financeStats.total_percu) }}</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-white/10">
+            <span class="text-blue-100 text-sm flex items-center gap-1.5">
+              <CalendarDays :size="13" class="text-blue-200" /> Ce mois
+            </span>
+            <span class="font-bold">{{ formatMontantDash(financeStats.percu_ce_mois) }}</span>
+          </div>
+          <div class="flex justify-between items-center py-1">
+            <span class="text-blue-100 text-sm flex items-center gap-1.5">
+              <Home :size="13" class="text-blue-200" /> Locations actives
+            </span>
+            <span class="font-bold">{{ financeStats.nb_locations_actives ?? 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reversements urgents -->
+      <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-[#1A56A0] flex items-center gap-2">
+            <ArrowLeftRight :size="18" class="text-[#1A56A0]" />
+            Reversements en attente
+          </h2>
+          <div class="flex items-center gap-2">
+            <span v-if="financeStats.nb_reversements_en_attente > 0"
+              class="px-2 py-0.5 bg-blue-100 text-[#1A56A0] text-xs font-bold rounded-full">
+              {{ financeStats.nb_reversements_en_attente }} à traiter
+            </span>
+            <NuxtLink to="/admin/commissions"
+              class="text-xs text-[#1A56A0] underline hover:no-underline">Gérer →</NuxtLink>
+          </div>
+        </div>
+        <div v-if="isLoadingFinance" class="space-y-3">
+          <div v-for="i in 2" :key="i" class="h-12 bg-gray-100 rounded-xl animate-pulse" />
+        </div>
+        <div v-else-if="financeStats.nb_reversements_en_attente === 0" class="py-8 text-center text-gray-400 text-sm">
+          <CheckCircle2 :size="32" class="text-green-300 mx-auto mb-2" />
+          Aucun reversement en attente — tous les propriétaires sont à jour.
+        </div>
+        <div v-else class="flex items-center justify-between bg-[#EBF4FB] border border-[#1A56A0]/20 rounded-xl p-4">
+          <div>
+            <p class="text-sm font-bold text-[#1A56A0]">{{ financeStats.nb_reversements_en_attente }} reversement(s) en attente</p>
+            <p class="text-xs text-[#1A56A0]/70 mt-0.5">Montant total dû aux propriétaires</p>
+          </div>
+          <div class="text-right">
+            <p class="text-xl font-extrabold text-[#1A56A0]">{{ formatMontantDash(financeStats.reversements_en_attente) }}</p>
+            <NuxtLink to="/admin/commissions"
+              class="text-xs text-[#1A56A0] underline">Traiter maintenant</NuxtLink>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  Users, ShieldCheck, CheckCircle2, Clock, RefreshCw,
+  CalendarDays, TrendingUp, ImageOff, Banknote, Home, ArrowLeftRight,
+} from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth/auth'
+import { useCommissionsStore } from '~/stores/commissions'
 
 definePageMeta({ layout: 'admin' })
 
 const authStore = useAuthStore()
+const commStore = useCommissionsStore()
 const config    = useRuntimeConfig()
 const apiBase   = config.public?.apiBase || 'http://localhost:8000/api'
 
@@ -193,6 +273,10 @@ const stats        = useState<any>('admin_dashboard_stats', () => null)
 const isLoading    = ref(stats.value === null) // skeleton seulement si aucune donnée en cache
 const lastUpdated  = ref('—')
 let   pollTimer: ReturnType<typeof setInterval> | null = null
+
+// Finance (références depuis le store commissions)
+const financeStats     = commStore.stats
+const isLoadingFinance = commStore.isLoading
 
 // ── Load stats ─────────────────────────────────────────────────────────────
 async function loadStats(silent = false) {
@@ -211,6 +295,11 @@ async function loadStats(silent = false) {
   }
 }
 
+function formatMontantDash(val: number | undefined): string {
+  if (!val && val !== 0) return '—'
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val) + ' FCFA'
+}
+
 // ── Derived data ───────────────────────────────────────────────────────────
 const biensEnAttente = computed(() => stats.value?.biens_en_attente ?? [])
 const agentsPerf     = computed(() => stats.value?.agents_perf ?? [])
@@ -218,12 +307,12 @@ const agentsPerf     = computed(() => stats.value?.agents_perf ?? [])
 const kpiCards = computed(() => {
   const k = stats.value?.kpis ?? {}
   return [
-    { id: 1, label: 'Clients',      value: k.total_clients ?? '—',      icon: 'group',          iconClass: 'text-blue-400',   trend: 'Propriétaires inscrits',   trendIcon: 'person',          trendClass: 'text-gray-400' },
-    { id: 2, label: 'Agents',       value: k.total_agents ?? '—',       icon: 'badge',          iconClass: 'text-purple-400', trend: 'Agents actifs',            trendIcon: 'verified',        trendClass: 'text-purple-500' },
-    { id: 3, label: 'Publiés',      value: k.biens_publies ?? '—',      icon: 'check_circle',   iconClass: 'text-green-400',  trend: 'Annonces en ligne',        trendIcon: 'trending_up',     trendClass: 'text-green-600' },
-    { id: 4, label: 'Non assignés', value: k.biens_en_attente ?? '—',   icon: 'pending',        iconClass: 'text-orange-400', trend: 'Urgence de traitement',    trendIcon: 'priority_high',   trendClass: 'text-orange-500' },
-    { id: 5, label: 'En cours',     value: k.biens_en_cours ?? '—',     icon: 'autorenew',      iconClass: 'text-blue-400',   trend: 'Vérification en cours',    trendIcon: 'hourglass_top',   trendClass: 'text-blue-500' },
-    { id: 6, label: 'Visites',      value: k.visites_total ?? '—',      icon: 'calendar_month', iconClass: 'text-indigo-400', trend: `${k.visites_planifiees ?? 0} à venir`, trendIcon: 'event', trendClass: 'text-indigo-500' },
+    { id: 1, label: 'Clients',      value: k.total_clients ?? '—',      icon: Users,         iconClass: 'text-blue-400',   trend: 'Propriétaires inscrits',  trendIcon: Users,        trendClass: 'text-gray-400' },
+    { id: 2, label: 'Agents',       value: k.total_agents ?? '—',       icon: ShieldCheck,   iconClass: 'text-purple-400', trend: 'Agents actifs',           trendIcon: ShieldCheck,  trendClass: 'text-purple-500' },
+    { id: 3, label: 'Publiés',      value: k.biens_publies ?? '—',      icon: CheckCircle2,  iconClass: 'text-green-400',  trend: 'Annonces en ligne',       trendIcon: TrendingUp,   trendClass: 'text-green-600' },
+    { id: 4, label: 'Non assignés', value: k.biens_en_attente ?? '—',   icon: Clock,         iconClass: 'text-blue-400',   trend: 'Urgence de traitement',   trendIcon: Clock,        trendClass: 'text-blue-500' },
+    { id: 5, label: 'En cours',     value: k.biens_en_cours ?? '—',     icon: RefreshCw,     iconClass: 'text-indigo-400', trend: 'Vérification en cours',   trendIcon: RefreshCw,    trendClass: 'text-indigo-500' },
+    { id: 6, label: 'Visites',      value: k.visites_total ?? '—',      icon: CalendarDays,  iconClass: 'text-teal-400',   trend: `${k.visites_planifiees ?? 0} à venir`, trendIcon: CalendarDays, trendClass: 'text-teal-500' },
   ]
 })
 
@@ -260,6 +349,7 @@ function formatDate(d: string | null): string {
 
 onMounted(() => {
   loadStats(stats.value !== null)
+  commStore.fetchStats(true)
   pollTimer = setInterval(() => loadStats(true), 30_000)
   document.addEventListener('visibilitychange', onVisibilityChange)
 })

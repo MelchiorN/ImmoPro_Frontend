@@ -69,8 +69,8 @@
           {{ cat.description }}
         </p>
 
-        <!-- Compteurs champs -->
-        <div class="px-5 py-3 mt-2 flex items-center gap-4">
+        <!-- Compteurs champs + Commission -->
+        <div class="px-5 py-3 mt-2 flex items-center gap-4 flex-wrap">
           <div class="flex items-center gap-1.5 text-xs text-gray-500">
             <LayoutList :size="13" class="text-[#1A56A0]" />
             <span><strong class="text-gray-800">{{ cat.nb_attributs_actifs }}</strong> champs actifs</span>
@@ -79,6 +79,14 @@
             class="flex items-center gap-1.5 text-xs text-gray-400">
             <EyeOff :size="13" />
             <span>{{ cat.nb_attributs - cat.nb_attributs_actifs }} désactivés</span>
+          </div>
+          <!-- Badge commission -->
+          <div class="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+            :class="cat.pourcentage_commission > 0
+              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+              : 'bg-gray-50 text-gray-400 border border-gray-200'">
+            <Percent :size="10" />
+            <span>{{ cat.pourcentage_commission > 0 ? cat.pourcentage_commission + '%' : 'Pas de commission' }}</span>
           </div>
         </div>
 
@@ -181,6 +189,23 @@
                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#1A56A0]/20 focus:border-[#1A56A0]" />
             </div>
 
+            <!-- Commission -->
+            <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 space-y-1.5">
+              <label class="flex items-center gap-1.5 text-xs font-bold text-amber-700 uppercase tracking-wider">
+                <Percent :size="13" />
+                Commission ImmoPro (%)
+              </label>
+              <div class="flex items-center gap-2">
+                <input v-model.number="form.pourcentage_commission" type="number" min="0" max="100" step="0.01"
+                  placeholder="ex: 10"
+                  class="flex-1 border border-amber-200 bg-white rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400" />
+                <span class="text-sm font-bold text-amber-600">%</span>
+              </div>
+              <p class="text-[11px] text-amber-600/80">
+                Le prix public affiché sur l'application sera : prix propriétaire + {{ form.pourcentage_commission || 0 }}%
+              </p>
+            </div>
+
             <!-- Erreur -->
             <p v-if="modal.error" class="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">
               <AlertCircle :size="15" />
@@ -212,7 +237,7 @@
 import {
   PlusCircle, Settings, Pencil, Eye, EyeOff, FolderX,
   AlertCircle, CheckCircle2, XCircle, X, Save, Loader2,
-  LayoutList, Home, Building2, TreePine, Briefcase, BedDouble,
+  LayoutList, Home, Building2, TreePine, Briefcase, BedDouble, Percent,
 } from 'lucide-vue-next'
 import { useCategoriesStore } from '~/stores/categories'
 import { useRouter } from 'vue-router'
@@ -271,10 +296,10 @@ async function toggleActif(cat) {
 const modal = reactive({
   open: false, mode: 'create', saving: false, error: null, id: null,
 })
-const form = reactive({ nom: '', slug: '', description: '', ordre_affichage: 0 })
+const form = reactive({ nom: '', slug: '', description: '', ordre_affichage: 0, pourcentage_commission: 0 })
 
 function openCreate() {
-  Object.assign(form, { nom: '', slug: '', description: '', ordre_affichage: 0 })
+  Object.assign(form, { nom: '', slug: '', description: '', ordre_affichage: 0, pourcentage_commission: 0 })
   Object.assign(modal, { open: true, mode: 'create', saving: false, error: null, id: null })
 }
 
@@ -284,6 +309,7 @@ function openEdit(cat) {
     slug: cat.slug,
     description: cat.description ?? '',
     ordre_affichage: cat.ordre_affichage ?? 0,
+    pourcentage_commission: cat.pourcentage_commission ?? 0,
   })
   Object.assign(modal, { open: true, mode: 'edit', saving: false, error: null, id: cat.id })
 }
@@ -297,7 +323,10 @@ async function submitModal() {
       res = await store.createCategorie({ ...form })
     } else {
       res = await store.updateCategorie(modal.id, {
-        nom: form.nom, description: form.description, ordre_affichage: form.ordre_affichage,
+        nom: form.nom,
+        description: form.description,
+        ordre_affichage: form.ordre_affichage,
+        pourcentage_commission: form.pourcentage_commission,
       })
     }
     if (res.success) {
