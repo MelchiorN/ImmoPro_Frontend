@@ -80,8 +80,9 @@ const navItems = [
   { id: 6,  label: 'Vérificateurs',  icon: 'verified_user',        href: '/admin/verifiers' },
   { id: 7,  label: 'Transactions',   icon: 'payments',             href: '/admin/transactions' },
   { id: 8,  label: 'Commissions',    icon: 'percent',              href: '/admin/commissions' },
-  { id: 9,  label: 'Alertes',        icon: 'notifications_active', href: '/admin/alerts' },
-  { id: 10, label: 'Rapports',       icon: 'analytics',            href: '/admin/reports' },
+  { id: 9,  label: 'Modèle de contrat', icon: 'description',        href: '/admin/contrats' },
+  { id: 10, label: 'Alertes',        icon: 'notifications_active', href: '/admin/alerts' },
+  { id: 11, label: 'Rapports',       icon: 'analytics',            href: '/admin/reports' },
 ]
 
 // Highlight active item based on current route

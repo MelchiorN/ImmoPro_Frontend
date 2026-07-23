@@ -8,17 +8,17 @@ export default defineNuxtConfig({
   ],
 
 // Configuration de l'icone de l'application
-  // app: {
-  //   head: {
-  //     link: [
-  //       {
-  //         rel: 'icon',
-  //         type: 'image/png',
-  //         href: '/images/immopro.png',
-  //       },
-  //     ],
-  //   },
-  // },
+  app: {
+    head: {
+      link: [
+        {
+          rel: 'icon',
+          type: 'image/png',
+          href: '/images/immopro_logo.png',
+        },
+      ],
+    },
+  },
 
   // Auto-import des composants
   components: {
